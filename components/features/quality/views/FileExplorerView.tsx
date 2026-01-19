@@ -42,11 +42,15 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
   const [fileToRename, setFileToRename] = useState<FileNode | null>(null);
   const fileExplorerRef = useRef<FileExplorerHandle>(null);
 
+  // NOVIDADE: Estado para rastrear qual empresa é dona do contexto atual (especialmente útil no modo global)
+  const [contextualOwnerId, setContextualOwnerId] = useState<string | null>(orgId === 'global' ? null : orgId);
+
   const handleViewChange = (mode: 'grid' | 'list') => {
     setViewMode(mode);
     localStorage.setItem('explorer_view_mode', mode);
   };
 
+  // Efeito para resolver a pasta inicial caso venha de um orgId específico
   useEffect(() => {
     const resolveInitialFolder = async () => {
       if (orgId && orgId !== 'global' && !currentFolderId) {
@@ -61,8 +65,37 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
     resolveInitialFolder();
   }, [orgId, currentFolderId, setSearchParams]);
 
+  // NOVIDADE: Efeito para descobrir o dono da pasta atual quando navegando pelo Cloud Global
+  useEffect(() => {
+    const resolveContextualOwner = async () => {
+      if (orgId !== 'global') {
+        setContextualOwnerId(orgId);
+        return;
+      }
+
+      if (!currentFolderId) {
+        setContextualOwnerId(null);
+        return;
+      }
+
+      // Busca o owner_id da pasta atual para saber em qual empresa estamos "dentro"
+      const { data } = await supabase
+        .from('files')
+        .select('owner_id')
+        .eq('id', currentFolderId)
+        .single();
+      
+      setContextualOwnerId(data?.owner_id || null);
+    };
+
+    resolveContextualOwner();
+  }, [orgId, currentFolderId]);
+
   const collection = useFileCollection({ currentFolderId, searchTerm, ownerId: orgId });
-  const ops = useFileOperations(orgId, () => collection.fetchFiles(true));
+  
+  // CORREÇÃO: Passamos o contextualOwnerId para as operações. 
+  // Isso resolve o erro de "Usuário Órfão" pois agora o hook sabe o ID da empresa alvo.
+  const ops = useFileOperations(contextualOwnerId, () => collection.fetchFiles(true));
 
   const activeSelectedFile = collection.files.find(f => f.id === selectedFileIds[selectedFileIds.length - 1]) || null;
 
@@ -110,7 +143,6 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
         selectedFilesData={collection.files.filter(f => selectedFileIds.includes(f.id))} 
       />
 
-      {/* Ocupa todo o resto da altura disponível e provê contexto relativo para o scroll absoluto do FileExplorer */}
       <div className="flex-1 relative bg-slate-50/50">
         <FileExplorer 
             ref={fileExplorerRef} 

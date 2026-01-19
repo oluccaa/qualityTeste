@@ -6,51 +6,56 @@ import { logAction } from './loggingService.ts';
 import { toDomainFile } from '../mappers/fileMapper.ts';
 
 export const SupabasePartnerService: IPartnerService = {
+  // ... (mantenha os métodos existentes)
+
+  submitVersionedReview: async ({ user, file, status, description, reasonCode, snapshotUrl, pageCount }) => {
+    // Busca a última versão para incrementar
+    const { data: lastReview } = await supabase
+      .from('file_reviews')
+      .select('version_number')
+      .eq('file_id', file.id)
+      .order('version_number', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const nextVersion = (lastReview?.version_number || 0) + 1;
+
+    const { error } = await supabase.from('file_reviews').insert({
+      file_id: file.id,
+      version_number: nextVersion,
+      file_snapshot_url: snapshotUrl,
+      author_id: user.id,
+      author_name_snapshot: user.name,
+      author_email_snapshot: user.email,
+      status: status,
+      rejection_reason_code: reasonCode,
+      rejection_description: description,
+      pdf_page_count: pageCount,
+      created_at: new Date().toISOString()
+    });
+
+    if (error) throw error;
+
+    await logAction(user, `REVIEW_V${nextVersion}_${status}`, file.name, 'DATA', status === QualityStatus.REJECTED ? 'WARNING' : 'INFO');
+  },
+
   getCertificates: async (orgId, folderId, search) => {
     if (!orgId) throw new Error("ID da Organização ausente no perfil do usuário.");
-
-    let query = supabase
-      .from('files')
-      .select('*, profiles:uploaded_by(full_name)', { count: 'exact' })
-      .eq('owner_id', orgId);
-
-    if (search) {
-      query = query.ilike('name', `%${search}%`);
-    } else {
-      if (folderId) {
-        query = query.eq('parent_id', folderId);
-      } else {
-        query = query.is('parent_id', null);
-      }
+    let query = supabase.from('files').select('*, profiles:uploaded_by(full_name)', { count: 'exact' }).eq('owner_id', orgId);
+    if (search) query = query.ilike('name', `%${search}%`);
+    else {
+      if (folderId) query = query.eq('parent_id', folderId);
+      else query = query.is('parent_id', null);
     }
-
-    const { data, count, error } = await query
-      .order('type', { ascending: true }) // FOLDER vem antes de PDF/IMAGE
-      .order('name', { ascending: true });
-
-    if (error) {
-      console.error("Erro Supabase getCertificates:", error.message);
-      throw error;
-    }
-
-    return {
-      items: (data || []).map(toDomainFile),
-      total: count || 0,
-      hasMore: false
-    };
+    const { data, count, error } = await query.order('type', { ascending: true }).order('name', { ascending: true });
+    if (error) throw error;
+    return { items: (data || []).map(toDomainFile), total: count || 0, hasMore: false };
   },
 
   getComplianceOverview: async (orgId) => {
     if (!orgId) return { approvedCount: 0, rejectedCount: 0, unviewedCount: 0, lastAnalysis: new Date().toISOString() };
-
-    const { data: stats, error } = await supabase
-      .from('files')
-      .select('metadata->>status')
-      .eq('owner_id', orgId)
-      .neq('type', 'FOLDER');
-
+    const { data: stats, error } = await supabase.from('files').select('metadata->>status').eq('owner_id', orgId).neq('type', 'FOLDER');
     if (error) return { approvedCount: 0, rejectedCount: 0, unviewedCount: 0, lastAnalysis: new Date().toISOString() };
-
     return {
       approvedCount: stats.filter(s => s.status === QualityStatus.APPROVED).length,
       rejectedCount: stats.filter(s => s.status === QualityStatus.REJECTED).length,
@@ -61,43 +66,18 @@ export const SupabasePartnerService: IPartnerService = {
 
   getRecentActivity: async (orgId) => {
     if (!orgId) return [];
-    const { data, error } = await supabase
-      .from('files')
-      .select('*, profiles:uploaded_by(full_name)')
-      .eq('owner_id', orgId)
-      .neq('type', 'FOLDER')
-      .order('updated_at', { ascending: false })
-      .limit(5);
-    
+    const { data, error } = await supabase.from('files').select('*, profiles:uploaded_by(full_name)').eq('owner_id', orgId).neq('type', 'FOLDER').order('updated_at', { ascending: false }).limit(5);
     return (data || []).map(toDomainFile);
   },
 
   getPartnerDashboardStats: async (orgId): Promise<DashboardStatsData> => {
-    if (!orgId) {
-      return { mainValue: 0, subValue: 0, pendingValue: 0, status: 'REGULAR', mainLabel: 'Certificados', subLabel: 'Aprovados' };
-    }
-
-    const { data, error } = await supabase
-      .from('files')
-      .select('id, type, metadata')
-      .eq('owner_id', orgId);
-
-    if (error || !data) {
-       return { mainValue: 0, subValue: 0, pendingValue: 0, status: 'REGULAR', mainLabel: 'Certificados', subLabel: 'Aprovados' };
-    }
-
+    if (!orgId) return { mainValue: 0, subValue: 0, pendingValue: 0, status: 'REGULAR', mainLabel: 'Certificados', subLabel: 'Aprovados' };
+    const { data, error } = await supabase.from('files').select('id, type, metadata').eq('owner_id', orgId);
+    if (error || !data) return { mainValue: 0, subValue: 0, pendingValue: 0, status: 'REGULAR', mainLabel: 'Certificados', subLabel: 'Aprovados' };
     const filesOnly = data.filter(f => f.type !== 'FOLDER');
     const approved = filesOnly.filter(f => f.metadata?.status === QualityStatus.APPROVED).length;
     const pending = filesOnly.filter(f => f.metadata?.status === QualityStatus.PENDING || !f.metadata?.status).length;
-
-    return {
-      mainValue: filesOnly.length,
-      subValue: approved,
-      pendingValue: pending,
-      status: pending > 0 ? 'PENDING' : 'REGULAR',
-      mainLabel: 'Certificados Totais',
-      subLabel: 'Validados'
-    };
+    return { mainValue: filesOnly.length, subValue: approved, pendingValue: pending, status: pending > 0 ? 'PENDING' : 'REGULAR', mainLabel: 'Certificados Totais', subLabel: 'Validados' };
   },
 
   logFileView: async (user, file) => {
@@ -108,16 +88,13 @@ export const SupabasePartnerService: IPartnerService = {
     const { error } = await supabase.from('file_reviews').insert({
       file_id: file.id,
       author_id: user.id,
+      author_name_snapshot: user.name,
+      author_email_snapshot: user.email,
+      file_snapshot_url: file.storagePath,
       status: status,
-      annotations: {
-        observations: observations || "",
-        flags: flags || [],
-        drawings: annotations || [],
-        client_name: user.name,
-        timestamp: new Date().toISOString()
-      }
+      rejection_description: observations,
+      annotations: { flags: flags || [], drawings: annotations || [] }
     });
-
     if (error) throw error;
     await logAction(user, `REVIEW_SUBMITTED_${status}`, file.name, 'DATA', 'INFO', 'SUCCESS');
   }
