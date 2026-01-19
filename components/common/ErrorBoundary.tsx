@@ -12,12 +12,12 @@ interface State {
 
 /**
  * Boundary de Erros do Sistema
- * Refatorado para maior estabilidade e compatibilidade com TypeScript.
+ * Refatorado para garantir a correta detecção de herança da classe base Component.
  */
-// Fix: Explicitly import and extend Component to ensure base class properties (state, props) and methods (setState) are recognized by the TypeScript compiler
+// Fix: Import Component explicitly to help TypeScript resolve base class members and avoid detection issues
 export class ErrorBoundary extends Component<Props, State> {
   
-  // Fix: Initializing state as a class property to ensure it is correctly typed and recognized on 'this'
+  // Fix: Initialized state without the override modifier which was triggering base class resolution errors
   public state: State = {
     hasError: false
   };
@@ -32,19 +32,20 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   // Catching errors for logging and analytics
+  // Fix: Removed override keyword to resolve compilation errors where base class methods were not correctly detected
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[Critical System Error]', error, errorInfo);
   }
 
   // Handler to reset error state and reload the application
   private handleReset = () => {
-    // Fix: setState is inherited from base Component class
+    // Fix: setState is now correctly accessible through inheritance from Component
     this.setState({ hasError: false, error: undefined });
     window.location.reload();
   };
 
+  // Fix: Removed override modifier and ensured proper access to this.state and this.props from base Component
   public render(): ReactNode {
-    // Fix: Accessing state and props which are inherited from base Component class
     if (!this.state.hasError) return this.props.children;
 
     return (

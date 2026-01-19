@@ -23,42 +23,46 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole
   const isClient = userRole === UserRole.CLIENT;
   const currentStep = metadata?.currentStep || 1;
 
-  // Lógica de parsing para o contato do cliente
-  const lastInteraction = metadata?.lastClientInteractionBy || '';
-  const [clientName, clientEmail] = lastInteraction.includes(' | ') 
-    ? lastInteraction.split(' | ') 
-    : [lastInteraction, ''];
+  // Lógica de extração do e-mail real do auditor/cliente
+  const lastInteractionData = metadata?.lastClientInteractionBy || '';
+  const hasSeparator = lastInteractionData.includes(' | ');
+  
+  // Se tiver o separador, pegamos o e-mail. Se não tiver (registro antigo), 
+  // e o usuário atual for o cliente, mostramos o e-mail dele como referência.
+  const clientName = hasSeparator 
+    ? lastInteractionData.split(' | ')[0] 
+    : (lastInteractionData || 'Representante Técnico');
+    
+  const clientRealEmail = hasSeparator 
+    ? lastInteractionData.split(' | ')[1] 
+    : (isClient ? userEmail : '');
 
-  // Lógica de Finalização das Conferências (Passo 2 e 3)
+  // Finalização das Conferências (Passo 2)
   const handleClientConferences = async (docStatus: QualityStatus, physStatus: QualityStatus) => {
     if (!isClient) return;
-
     const isFullyApproved = docStatus === QualityStatus.APPROVED && physStatus === QualityStatus.APPROVED;
     
-    const payload: Partial<SteelBatchMetadata> = {
+    await onUpdate({
       documentalStatus: docStatus,
       physicalStatus: physStatus,
       clientObservations: localObservations,
       lastClientInteractionAt: new Date().toISOString(),
-      // Salva o contato combinado para rastreabilidade
+      // CRITICAL: Garante que o e-mail real da conta que está logada seja gravado
       lastClientInteractionBy: `${userName} | ${userEmail}`,
       currentStep: isFullyApproved ? 7 : 4,
       status: isFullyApproved ? QualityStatus.APPROVED : QualityStatus.REJECTED
-    };
-
-    await onUpdate(payload);
+    });
   };
 
+  // Veredito do Parceiro (Passo 4/5)
   const handlePartnerVerdict = async (verdict: QualityStatus) => {
     if (!isClient) return;
-    
-    const targetStep = verdict === QualityStatus.APPROVED ? 7 : 6;
-    
     await onUpdate({ 
-      currentStep: targetStep, 
+      currentStep: verdict === QualityStatus.APPROVED ? 7 : 6, 
       status: verdict, 
       finalPartnerVerdict: verdict, 
       finalVerdictAt: new Date().toISOString(), 
+      // CRITICAL: Garante que o e-mail real da conta que está logada seja gravado no impasse
       lastClientInteractionBy: `${userName} | ${userEmail}`,
       lastClientInteractionAt: new Date().toISOString()
     });
@@ -131,7 +135,6 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole
                           </select>
                       </div>
                   </div>
-
                   <div className="space-y-2">
                       <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Observações do Recebimento</label>
                       <textarea 
@@ -141,7 +144,6 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole
                           onChange={(e) => setLocalObservations(e.target.value)}
                       />
                   </div>
-
                   <button 
                     onClick={() => handleClientConferences(metadata?.documentalStatus || QualityStatus.APPROVED, metadata?.physicalStatus || QualityStatus.APPROVED)}
                     className="w-full py-4 bg-[#b23c0e] text-white rounded-2xl font-black text-[10px] uppercase tracking-[3px] shadow-xl shadow-orange-900/20"
@@ -246,62 +248,68 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole
       {/* ETAPA 5: CONTATO DE EMERGÊNCIA / IMPASSE TÉCNICO */}
       {currentStep === 6 && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            <div className="bg-red-50/50 border-2 border-red-100 rounded-[2.5rem] p-10 space-y-6 relative overflow-hidden shadow-sm">
+            <div className="bg-red-50/40 border-[1.5px] border-red-100 rounded-[2.5rem] p-10 space-y-8 relative overflow-hidden shadow-sm">
                 <div className="absolute top-0 right-0 p-12 opacity-5 text-red-600 rotate-12 pointer-events-none">
                     <AlertTriangle size={140} />
                 </div>
                 
                 <div className="flex items-center gap-5 relative z-10">
-                    <div className="p-4 bg-red-600 text-white rounded-[1.4rem] shadow-xl shadow-red-500/20">
+                    <div className="p-4 bg-white border-2 border-red-100 text-red-600 rounded-[1.4rem] shadow-sm">
                         {isClient ? <Mail size={32} /> : <UserX size={32} />}
                     </div>
                     <div>
-                        <h4 className="text-xl font-black text-red-900 uppercase tracking-tighter">
+                        <h4 className="text-xl font-black text-red-800 uppercase tracking-tighter">
                             {isClient ? 'Ação Requerida' : 'Parecer Recusado pelo Cliente'}
                         </h4>
-                        <p className="text-[10px] font-black text-red-700 uppercase tracking-[3px]">
-                            {isClient ? 'Impasses na Conformidade B2B' : 'Contestação de Mediação'}
+                        <p className="text-[9px] font-black text-red-600 uppercase tracking-[4px] opacity-70">
+                            Impasses na Conformidade B2B
                         </p>
                     </div>
                 </div>
 
-                <div className="relative z-10 space-y-6">
+                <div className="relative z-10 space-y-8">
                   {isClient ? (
                     <>
-                      <p className="text-sm text-red-800 font-medium leading-relaxed max-w-lg">
+                      <p className="text-base text-red-900 font-medium leading-relaxed max-w-lg">
                         O parecer técnico não foi aceito. Para garantir a continuidade operacional, entre em contato direto com nosso departamento de qualidade para escalonamento.
                       </p>
                       <a 
                           href="mailto:qualidade@acosvital.com.br"
-                          className="inline-flex items-center gap-3 px-10 py-4 bg-red-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[3px] shadow-2xl shadow-red-600/30 hover:bg-red-700 transition-all active:scale-95"
+                          className="inline-flex items-center gap-4 px-10 py-5 bg-red-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[3px] shadow-2xl shadow-red-600/30 hover:bg-red-700 transition-all active:scale-95"
                       >
-                          Falar com Supervisor <RefreshCcw size={16} />
+                          Falar com o Dept. Qualidade <RefreshCcw size={18} />
                       </a>
                     </>
                   ) : (
                     <>
-                      <div className="space-y-4">
+                      <div className="space-y-6">
                          <p className="text-base text-red-900 font-medium leading-relaxed">
-                           O parecer técnico não foi aceito pelo cliente e ele irá entrar em contato conosco.
+                           O parecer técnico não foi aceito pelo parceiro. O representante técnico <span className="font-black underline">{clientName}</span> entrará em contato com a Vital para escalonamento.
                          </p>
                          
-                         <div className="py-6 border-y border-red-100 space-y-4">
-                            <div className="flex items-center gap-3">
-                               <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-black text-xs">P</div>
-                               <p className="text-sm font-bold text-red-900">
-                                 Pessoa: <span className="font-black underline">{clientName || 'Representante'}</span>
-                               </p>
+                         <div className="py-8 border-y border-red-100/50 space-y-5">
+                            <div className="flex items-center gap-4">
+                               <div className="w-10 h-10 rounded-xl bg-white border border-red-100 flex items-center justify-center text-red-600 font-black text-sm shadow-sm">ID</div>
+                               <div>
+                                  <p className="text-[9px] font-black text-red-400 uppercase tracking-widest">Pessoa Responsável</p>
+                                  <p className="text-sm font-black text-red-900 uppercase">{clientName}</p>
+                               </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                               <Mail size={20} className="text-red-400" />
-                               <p className="text-sm font-bold text-red-900">
-                                 Email: <span className="font-black underline">{clientEmail || 'acesso@cliente.com'}</span>
-                               </p>
+                            <div className="flex items-center gap-4">
+                               <div className="w-10 h-10 rounded-xl bg-white border border-red-100 flex items-center justify-center text-red-600 shadow-sm">
+                                  <Mail size={18} />
+                               </div>
+                               <div>
+                                  <p className="text-[9px] font-black text-red-400 uppercase tracking-widest">E-mail do Cliente</p>
+                                  <p className="text-sm font-bold text-red-900 underline underline-offset-4 decoration-red-200">
+                                    {clientRealEmail || 'E-mail não registrado'}
+                                  </p>
+                               </div>
                             </div>
                          </div>
                       </div>
                       
-                      <p className="text-[11px] font-black text-red-600 uppercase tracking-[3px] text-center pt-2">
+                      <p className="text-[11px] font-black text-red-600 uppercase tracking-[4px] text-center pt-2 animate-pulse">
                         AGUARDANDO CONTATO ATIVO DO CLIENTE OU INTERVENÇÃO DA GERÊNCIA.
                       </p>
                     </>
@@ -343,7 +351,7 @@ const StepCard = ({ number, title, status, description, children }: any) => {
     <div className={`relative pl-14 transition-all duration-700 ${isLocked ? 'opacity-30 blur-[0.5px] grayscale pointer-events-none' : 'opacity-100'}`}>
       <div className={`absolute left-0 top-0 w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs border-2 z-10 transition-all ${
         isActive ? 'bg-[#b23c0e] border-[#b23c0e] text-white scale-110 shadow-2xl shadow-orange-500/20' :
-        isDone ? 'bg-emerald-50 border-emerald-500 text-white' :
+        isDone ? 'bg-emerald-500 border-emerald-500 text-white' :
         'bg-white border-slate-200 text-slate-300'
       }`}>
         {isDone ? <Check size={18} strokeWidth={4} /> : number}
