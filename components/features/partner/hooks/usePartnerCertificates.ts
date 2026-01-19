@@ -9,21 +9,23 @@ import { FileNode, BreadcrumbItem, User } from '../../../../types/index.ts';
  * Gerencia a navegação auto-root e a hierarquia de certificados.
  */
 export const usePartnerCertificates = (folderIdFromParams: string | null, searchTerm: string) => {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [files, setFiles] = useState<FileNode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
 
   const loadData = useCallback(async () => {
+    // Se o auth ainda está carregando ou se o usuário não tem orgId, não tenta buscar arquivos
+    if (isAuthLoading) return;
+    
     if (!user?.organizationId) {
       setIsLoading(false);
+      setFiles([]);
       return;
     }
 
     setIsLoading(true);
     try {
-      // Se não houver folderId nos parâmetros, a implementação do service 
-      // já busca por parent_id is null filtrando pela organização do usuário.
       const [filesRes, breadcrumbsRes] = await Promise.all([
         partnerService.getCertificates(user.organizationId, folderIdFromParams, searchTerm),
         fileService.getBreadcrumbs(user as User, folderIdFromParams)
@@ -36,7 +38,7 @@ export const usePartnerCertificates = (folderIdFromParams: string | null, search
     } finally {
       setIsLoading(false);
     }
-  }, [user, folderIdFromParams, searchTerm]);
+  }, [user, folderIdFromParams, searchTerm, isAuthLoading]);
 
   useEffect(() => {
     loadData();

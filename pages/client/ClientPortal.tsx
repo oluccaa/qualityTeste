@@ -1,4 +1,5 @@
-import React, { useCallback } from 'react';
+
+import { useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ClientLayout } from '../../components/layout/ClientLayout.tsx';
 import ClientDashboard from '../dashboards/ClientDashboard.tsx';
@@ -24,7 +25,7 @@ const ClientPortal: React.FC = () => {
       activeView={activeView} 
       onViewChange={handleViewChange}
     >
-      <main className="animate-in fade-in slide-in-from-bottom-3 duration-700">
+      <main className="flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-bottom-3 duration-700">
         {activeView === 'home' ? <ClientDashboard /> : <PartnerLibraryView />}
       </main>
     </ClientLayout>

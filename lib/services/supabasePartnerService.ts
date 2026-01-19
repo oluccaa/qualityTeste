@@ -1,36 +1,22 @@
 
-import { IPartnerService, PaginatedResponse, DashboardStatsData } from './interfaces.ts';
+import { IPartnerService, DashboardStatsData } from './interfaces.ts';
 import { supabase } from '../supabaseClient.ts';
-import { FileNode, QualityStatus, FileType, User } from '../../types/index.ts';
+import { QualityStatus, User } from '../../types/index.ts';
 import { logAction } from './loggingService.ts';
-
-const toDomainFile = (row: any): FileNode => ({
-  id: row.id,
-  parentId: row.parent_id,
-  name: row.name,
-  type: row.type as FileType,
-  size: row.size,
-  updatedAt: row.updated_at,
-  ownerId: row.owner_id,
-  storagePath: row.storage_path,
-  isFavorite: !!row.is_favorite,
-  metadata: row.metadata || { status: 'PENDING' }
-});
+import { toDomainFile } from '../mappers/fileMapper.ts';
 
 export const SupabasePartnerService: IPartnerService = {
   getCertificates: async (orgId, folderId, search) => {
     if (!orgId) throw new Error("ID da Organização ausente no perfil do usuário.");
 
-    // Busca bruta na tabela files filtrando pela organização do cliente
     let query = supabase
       .from('files')
-      .select('*', { count: 'exact' })
+      .select('*, profiles:uploaded_by(full_name)', { count: 'exact' })
       .eq('owner_id', orgId);
 
     if (search) {
       query = query.ilike('name', `%${search}%`);
     } else {
-      // Se não tem folderId, busca o que está na "raiz" da empresa (parent_id nulo)
       if (folderId) {
         query = query.eq('parent_id', folderId);
       } else {
@@ -39,7 +25,7 @@ export const SupabasePartnerService: IPartnerService = {
     }
 
     const { data, count, error } = await query
-      .order('type', { ascending: false }) // Pastas primeiro
+      .order('type', { ascending: true }) // FOLDER vem antes de PDF/IMAGE
       .order('name', { ascending: true });
 
     if (error) {
@@ -77,7 +63,7 @@ export const SupabasePartnerService: IPartnerService = {
     if (!orgId) return [];
     const { data, error } = await supabase
       .from('files')
-      .select('*')
+      .select('*, profiles:uploaded_by(full_name)')
       .eq('owner_id', orgId)
       .neq('type', 'FOLDER')
       .order('updated_at', { ascending: false })
