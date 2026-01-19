@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { 
   Check, Send, RefreshCcw, ShieldCheck, 
-  AlertTriangle, Plus, X, MessageSquare, Clock, FileCheck, Mail, Info
+  AlertTriangle, Plus, X, MessageSquare, Clock, FileCheck, Mail, Info, UserX
 } from 'lucide-react';
 import { SteelBatchMetadata, QualityStatus, UserRole } from '../../../../types/index.ts';
 
@@ -10,17 +10,24 @@ interface AuditWorkflowProps {
   metadata: SteelBatchMetadata | undefined;
   userRole: UserRole;
   userName: string;
+  userEmail: string;
   fileId: string;
   onUpdate: (updatedMetadata: Partial<SteelBatchMetadata>) => Promise<void>;
 }
 
-export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole, userName, onUpdate }) => {
+export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole, userName, userEmail, onUpdate }) => {
   const [localRemediation, setLocalRemediation] = useState('');
   const [localObservations, setLocalObservations] = useState('');
 
   const isAnalyst = userRole === UserRole.QUALITY || userRole === UserRole.ADMIN;
   const isClient = userRole === UserRole.CLIENT;
   const currentStep = metadata?.currentStep || 1;
+
+  // Lógica de parsing para o contato do cliente
+  const lastInteraction = metadata?.lastClientInteractionBy || '';
+  const [clientName, clientEmail] = lastInteraction.includes(' | ') 
+    ? lastInteraction.split(' | ') 
+    : [lastInteraction, ''];
 
   // Lógica de Finalização das Conferências (Passo 2 e 3)
   const handleClientConferences = async (docStatus: QualityStatus, physStatus: QualityStatus) => {
@@ -33,13 +40,28 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole
       physicalStatus: physStatus,
       clientObservations: localObservations,
       lastClientInteractionAt: new Date().toISOString(),
-      lastClientInteractionBy: userName,
-      // Se aprovar tudo, pula para finalizado (Passo 7), senão vai para Mediação (Passo 4)
+      // Salva o contato combinado para rastreabilidade
+      lastClientInteractionBy: `${userName} | ${userEmail}`,
       currentStep: isFullyApproved ? 7 : 4,
       status: isFullyApproved ? QualityStatus.APPROVED : QualityStatus.REJECTED
     };
 
     await onUpdate(payload);
+  };
+
+  const handlePartnerVerdict = async (verdict: QualityStatus) => {
+    if (!isClient) return;
+    
+    const targetStep = verdict === QualityStatus.APPROVED ? 7 : 6;
+    
+    await onUpdate({ 
+      currentStep: targetStep, 
+      status: verdict, 
+      finalPartnerVerdict: verdict, 
+      finalVerdictAt: new Date().toISOString(), 
+      lastClientInteractionBy: `${userName} | ${userEmail}`,
+      lastClientInteractionAt: new Date().toISOString()
+    });
   };
 
   return (
@@ -192,13 +214,13 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole
           isClient ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in zoom-in-95 duration-500">
                <button 
-                  onClick={() => onUpdate({ currentStep: 7, status: QualityStatus.APPROVED, finalPartnerVerdict: QualityStatus.APPROVED, finalVerdictAt: new Date().toISOString(), lastClientInteractionBy: userName })} 
+                  onClick={() => handlePartnerVerdict(QualityStatus.APPROVED)} 
                   className="py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[2px] shadow-lg hover:bg-emerald-700 transition-all"
                >
                   Aceitar Mediação
                </button>
                <button 
-                  onClick={() => onUpdate({ currentStep: 6, status: QualityStatus.REJECTED, finalPartnerVerdict: QualityStatus.REJECTED, finalVerdictAt: new Date().toISOString(), lastClientInteractionBy: userName })} 
+                  onClick={() => handlePartnerVerdict(QualityStatus.REJECTED)} 
                   className="py-4 bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[2px] shadow-lg hover:bg-red-700 transition-all"
                >
                   Manter Rejeição
@@ -212,7 +234,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole
           )
         ) : metadata?.finalVerdictAt ? (
            <StepBadge 
-              user={metadata.lastClientInteractionBy || 'Parceiro'} 
+              user={clientName || 'Parceiro'} 
               date={metadata.finalVerdictAt} 
               label="Veredito Final" 
               notes={metadata.finalPartnerVerdict === QualityStatus.APPROVED ? "Mediação aceita pelo parceiro." : "O parceiro manteve a divergência técnica."}
@@ -221,32 +243,70 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole
         ) : null}
       </StepCard>
 
-      {/* ETAPA 5: CONTATO DE EMERGÊNCIA (APARECE SE REJEITADO NO PASSO 5) */}
+      {/* ETAPA 5: CONTATO DE EMERGÊNCIA / IMPASSE TÉCNICO */}
       {currentStep === 6 && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            <div className="bg-red-50 border-2 border-red-100 rounded-[2.5rem] p-8 space-y-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-10 opacity-5 text-red-600 rotate-12"><AlertTriangle size={120} /></div>
+            <div className="bg-red-50/50 border-2 border-red-100 rounded-[2.5rem] p-10 space-y-6 relative overflow-hidden shadow-sm">
+                <div className="absolute top-0 right-0 p-12 opacity-5 text-red-600 rotate-12 pointer-events-none">
+                    <AlertTriangle size={140} />
+                </div>
                 
-                <div className="flex items-center gap-4">
-                    <div className="p-4 bg-red-600 text-white rounded-2xl shadow-xl">
-                        <Mail size={32} />
+                <div className="flex items-center gap-5 relative z-10">
+                    <div className="p-4 bg-red-600 text-white rounded-[1.4rem] shadow-xl shadow-red-500/20">
+                        {isClient ? <Mail size={32} /> : <UserX size={32} />}
                     </div>
                     <div>
-                        <h4 className="text-xl font-black text-red-900 uppercase tracking-tighter">Ação Requerida</h4>
-                        <p className="text-xs font-bold text-red-700 uppercase tracking-widest">Impasses na Conformidade B2B</p>
+                        <h4 className="text-xl font-black text-red-900 uppercase tracking-tighter">
+                            {isClient ? 'Ação Requerida' : 'Parecer Recusado pelo Cliente'}
+                        </h4>
+                        <p className="text-[10px] font-black text-red-700 uppercase tracking-[3px]">
+                            {isClient ? 'Impasses na Conformidade B2B' : 'Contestação de Mediação'}
+                        </p>
                     </div>
                 </div>
 
-                <p className="text-sm text-red-800 font-medium leading-relaxed max-w-lg">
-                    O parecer técnico não foi aceito. Para garantir a continuidade operacional, entre em contato direto com nosso departamento de qualidade para escalonamento.
-                </p>
-
-                <a 
-                    href="mailto:qualidade@acosvital.com.br"
-                    className="inline-flex items-center gap-3 px-8 py-4 bg-red-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[3px] shadow-2xl shadow-red-600/30 hover:bg-red-700 transition-all active:scale-95"
-                >
-                    Falar com Supervisor <RefreshCcw size={16} />
-                </a>
+                <div className="relative z-10 space-y-6">
+                  {isClient ? (
+                    <>
+                      <p className="text-sm text-red-800 font-medium leading-relaxed max-w-lg">
+                        O parecer técnico não foi aceito. Para garantir a continuidade operacional, entre em contato direto com nosso departamento de qualidade para escalonamento.
+                      </p>
+                      <a 
+                          href="mailto:qualidade@acosvital.com.br"
+                          className="inline-flex items-center gap-3 px-10 py-4 bg-red-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[3px] shadow-2xl shadow-red-600/30 hover:bg-red-700 transition-all active:scale-95"
+                      >
+                          Falar com Supervisor <RefreshCcw size={16} />
+                      </a>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-4">
+                         <p className="text-base text-red-900 font-medium leading-relaxed">
+                           O parecer técnico não foi aceito pelo cliente e ele irá entrar em contato conosco.
+                         </p>
+                         
+                         <div className="py-6 border-y border-red-100 space-y-4">
+                            <div className="flex items-center gap-3">
+                               <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-black text-xs">P</div>
+                               <p className="text-sm font-bold text-red-900">
+                                 Pessoa: <span className="font-black underline">{clientName || 'Representante'}</span>
+                               </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                               <Mail size={20} className="text-red-400" />
+                               <p className="text-sm font-bold text-red-900">
+                                 Email: <span className="font-black underline">{clientEmail || 'acesso@cliente.com'}</span>
+                               </p>
+                            </div>
+                         </div>
+                      </div>
+                      
+                      <p className="text-[11px] font-black text-red-600 uppercase tracking-[3px] text-center pt-2">
+                        AGUARDANDO CONTATO ATIVO DO CLIENTE OU INTERVENÇÃO DA GERÊNCIA.
+                      </p>
+                    </>
+                  )}
+                </div>
             </div>
         </div>
       )}
@@ -283,7 +343,7 @@ const StepCard = ({ number, title, status, description, children }: any) => {
     <div className={`relative pl-14 transition-all duration-700 ${isLocked ? 'opacity-30 blur-[0.5px] grayscale pointer-events-none' : 'opacity-100'}`}>
       <div className={`absolute left-0 top-0 w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs border-2 z-10 transition-all ${
         isActive ? 'bg-[#b23c0e] border-[#b23c0e] text-white scale-110 shadow-2xl shadow-orange-500/20' :
-        isDone ? 'bg-emerald-500 border-emerald-500 text-white' :
+        isDone ? 'bg-emerald-50 border-emerald-500 text-white' :
         'bg-white border-slate-200 text-slate-300'
       }`}>
         {isDone ? <Check size={18} strokeWidth={4} /> : number}

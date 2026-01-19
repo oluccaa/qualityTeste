@@ -76,6 +76,7 @@ export const FilePreviewModal: React.FC<{
                 metadata={currentFile?.metadata} 
                 userRole={user?.role as UserRole} 
                 userName={user?.name || ''}
+                userEmail={user?.email || ''}
                 fileId={currentFile?.id || ''}
                 onUpdate={handleUpdateMetadata}
               />
