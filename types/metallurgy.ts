@@ -35,36 +35,38 @@ export interface SteelBatchMetadata {
   // Controle de Fluxo
   currentStep: number;
   
-  // Etapa 1: Liberação
+  // Etapa 1: Liberação Técnica Vital (QUALITY/ADMIN)
   releasedAt?: ISO8601Date;
   releasedBy?: string;
 
-  // Etapa 2: Auditoria Cliente
+  // Etapa 2: Conferência Documental (CLIENT)
   documentalStatus?: QualityStatus;
-  documentalFlags?: string[];
+  documentalNotes?: string;
+
+  // Etapa 3: Conferência Física (CLIENT)
   physicalStatus?: QualityStatus;
-  physicalFlags?: string[];
+  physicalNotes?: string;
+
+  // Metadados de interação do cliente
   clientObservations?: string;
   viewedAt?: ISO8601Date;
+  lastClientInteractionAt?: string;
+  lastClientInteractionBy?: string;
 
-  // Etapa 3: Contestação
-  isContested?: boolean;
-  contestedAt?: ISO8601Date;
-  contestedBy?: string;
-  contestObservations?: string;
+  // Etapa 4: Mediação Técnica Vital (QUALITY/ADMIN)
+  remediationReply?: string;
+  remediatedAt?: ISO8601Date;
+  remediatedBy?: string;
 
-  // Etapa 4: Veredito Final
-  finalClientVerdict?: QualityStatus;
+  // Etapa 5: Veredito Final do Parceiro (CLIENT)
+  finalPartnerVerdict?: QualityStatus;
   finalVerdictAt?: ISO8601Date;
-
-  // Auditoria Técnica (Required for tracking document lifecycle)
-  // Fix: Adding inspectedAt, inspectedBy and rejectionReason to satisfy domain model requirements
-  inspectedAt?: ISO8601Date;
-  inspectedBy?: string;
-  rejectionReason?: string;
 
   // Global
   status: QualityStatus;
   chemicalComposition: ChemicalComposition;
   mechanicalProperties: MechanicalProperties;
+  rejectionReason?: string;
+  inspectedAt?: ISO8601Date;
+  inspectedBy?: string;
 }

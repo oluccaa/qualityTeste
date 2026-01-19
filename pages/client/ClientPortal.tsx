@@ -1,5 +1,5 @@
 
-import { useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ClientLayout } from '../../components/layout/ClientLayout.tsx';
 import ClientDashboard from '../dashboards/ClientDashboard.tsx';
