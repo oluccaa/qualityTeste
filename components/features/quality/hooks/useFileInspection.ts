@@ -69,7 +69,6 @@ export const useFileInspection = () => {
     if (!inspectorFile || !user) return;
     setIsProcessing(true);
     try {
-        // Criar ou localizar pasta de "Evidências" dentro da pasta pai do arquivo (Document Container)
         const { data: evidenceFolder, error: folderError } = await supabase.from('files').upsert({
             name: 'Fotos e Evidências',
             type: 'FOLDER',
@@ -81,7 +80,14 @@ export const useFileInspection = () => {
 
         if (folderError) throw folderError;
 
-        const sanitizedName = file.name.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
+        // FIX: Sanitização robusta para evitar "Invalid key" no Storage
+        const sanitizedName = file.name
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/\s+/g, "_")
+            .replace(/[^a-zA-Z0-9._-]/g, "")
+            .toLowerCase();
+            
         const filePath = `${inspectorFile.ownerId}/${evidenceFolder.id}/${Date.now()}-${sanitizedName}`;
 
         const { error: uploadError } = await supabase.storage.from('certificates').upload(filePath, file);

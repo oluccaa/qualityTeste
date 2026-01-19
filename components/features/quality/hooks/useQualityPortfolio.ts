@@ -22,7 +22,7 @@ export const useQualityPortfolio = () => {
         qualityService.getPendingInspections(user.id) // Agora retorna todos
       ]);
 
-      // 2. Busca arquivos contestados globalmente
+      // 2. Busca arquivos contestados globalmente usando sintaxe correta de texto ->>
       const { data: rejected, error: rejectedError } = await supabase
         .from('files')
         .select('*')

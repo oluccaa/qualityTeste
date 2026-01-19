@@ -1,7 +1,7 @@
+
 import React, { Suspense } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Loader2, RefreshCw } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
 
 import { AuthMiddleware } from './middlewares/AuthMiddleware.tsx';
 import { RoleMiddleware } from './middlewares/RoleMiddleware.tsx';
@@ -9,26 +9,18 @@ import { MaintenanceMiddleware } from './middlewares/MaintenanceMiddleware.tsx';
 import { useAuth } from './context/authContext.tsx';
 import { UserRole, normalizeRole } from './types/index.ts';
 
-// --- AUTH PAGES ---
+// --- LAZY PAGES ---
 const ClientLoginPage = React.lazy(() => import('./pages/auth/ClientLoginPage.tsx'));
 const StaffLoginPage = React.lazy(() => import('./pages/auth/StaffLoginPage.tsx'));
-
-// --- ADMIN PAGES ---
 const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard.tsx'));
 const AdminConsole = React.lazy(() => import('./pages/admin/AdminConsole.tsx'));
-
-// --- QUALITY PAGES ---
 const QualityDashboard = React.lazy(() => import('./pages/quality/QualityDashboard.tsx'));
 const QualityPortfolio = React.lazy(() => import('./pages/quality/QualityPortfolio.tsx'));
 const QualityAuditHistory = React.lazy(() => import('./pages/quality/QualityAuditHistory.tsx'));
 const QualityUserManagement = React.lazy(() => import('./pages/quality/QualityUserManagement.tsx'));
 const QualityExplorer = React.lazy(() => import('./pages/quality/QualityExplorer.tsx'));
 const FileInspection = React.lazy(() => import('./components/features/quality/views/FileInspection.tsx').then(m => ({ default: m.FileInspection })));
-
-// --- CLIENT PAGES ---
 const ClientPortal = React.lazy(() => import('./pages/client/ClientPortal.tsx'));
-
-// --- SHARED PAGES ---
 const SettingsPage = React.lazy(() => import('./pages/shared/SettingsPage.tsx'));
 const NotFoundPage = React.lazy(() => import('./pages/shared/NotFoundPage.tsx'));
 
@@ -50,21 +42,21 @@ const PageLoader = ({ message = "Carregando...", onRetry }: { message?: string; 
 const InitialAuthRedirect = () => {
     const { user, isLoading, error, isInitialSyncComplete, retryInitialSync } = useAuth();
 
-    if (isLoading) return <PageLoader message="Sincronizando Identidade Vital" />;
+    // Se estiver carregando ou o sync inicial ainda não terminou, mostra o loader
+    if (isLoading || !isInitialSyncComplete) return <PageLoader message="Sincronizando Protocolos" />;
     
-    if (isInitialSyncComplete && error) {
-      return <PageLoader message="Erro de Conexão com Gateway de Segurança" onRetry={retryInitialSync} />;
+    if (error) {
+      return <PageLoader message="Falha na Sincronização de Identidade" onRetry={retryInitialSync} />;
     }
     
     if (user) {
         const role = normalizeRole(user.role);
-        const roleRoutes: Record<UserRole, string> = {
-            [UserRole.ADMIN]: '/admin/dashboard',
-            [UserRole.QUALITY]: '/quality/dashboard',
-            [UserRole.CLIENT]: '/client/portal'
-        };
-        const target = roleRoutes[role] || '/404';
-        return <Navigate to={target} replace />;
+        
+        if (role === UserRole.ADMIN) return <Navigate to="/admin/dashboard" replace />;
+        if (role === UserRole.QUALITY) return <Navigate to="/quality/dashboard" replace />;
+        if (role === UserRole.CLIENT) return <Navigate to="/client/portal" replace />;
+        
+        return <Navigate to="/404" replace />;
     }
 
     return <Navigate to="/login" replace />;
@@ -72,41 +64,35 @@ const InitialAuthRedirect = () => {
 
 export const AppRoutes: React.FC = () => {
   return (
-    <Suspense fallback={<PageLoader message="Preparando Interface..." />}>
+    <Suspense fallback={<PageLoader message="Preparando Interface Vital..." />}>
       <Routes>
         <Route path="/" element={<InitialAuthRedirect />} />
-        
-        {/* PUBLIC AUTH ROUTES */}
         <Route path="/login" element={<ClientLoginPage />} />
         <Route path="/staff/login" element={<StaffLoginPage />} />
 
-        {/* PROTECTED ROUTES UNDER MAINTENANCE CONTROL */}
         <Route element={<MaintenanceMiddleware />}> 
             <Route element={<AuthMiddleware />}>
                 <Route path="/settings" element={<SettingsPage />} /> 
 
-                {/* ADMIN DOMAIN */}
+                {/* ADMIN EXCLUSIVE */}
                 <Route element={<RoleMiddleware allowedRoles={[UserRole.ADMIN]} />}>
                     <Route path="/admin/dashboard" element={<AdminDashboard />} />
                     <Route path="/admin/console" element={<AdminConsole />} /> 
-                    <Route path="/admin" element={<Navigate to="/admin/console" replace />} />
                 </Route>
 
-                {/* QUALITY ANALYST DOMAIN */}
-                <Route element={<RoleMiddleware allowedRoles={[UserRole.QUALITY, UserRole.ADMIN]} />}>
+                {/* QUALITY & ADMIN */}
+                <Route element={<RoleMiddleware allowedRoles={[UserRole.QUALITY]} />}>
                     <Route path="/quality/dashboard" element={<QualityDashboard />} />
                     <Route path="/quality/portfolio" element={<QualityPortfolio />} />
                     <Route path="/quality/users" element={<QualityUserManagement />} />
                     <Route path="/quality/explorer" element={<QualityExplorer />} />
                     <Route path="/quality/audit" element={<QualityAuditHistory />} />
                     <Route path="/quality/inspection/:fileId" element={<FileInspection />} />
-                    <Route path="/quality" element={<Navigate to="/quality/dashboard" replace />} />
                 </Route>
 
-                {/* CLIENT DOMAIN */}
-                <Route element={<RoleMiddleware allowedRoles={[UserRole.CLIENT, UserRole.ADMIN]} />}>
+                {/* CLIENT EXCLUSIVE */}
+                <Route element={<RoleMiddleware allowedRoles={[UserRole.CLIENT]} />}>
                     <Route path="/client/portal" element={<ClientPortal />} />
-                    <Route path="/client/dashboard" element={<Navigate to="/client/portal" replace />} />
                 </Route>
             </Route>
         </Route>

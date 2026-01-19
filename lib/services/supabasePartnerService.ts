@@ -59,7 +59,7 @@ export const SupabasePartnerService: IPartnerService = {
 
     const { data: stats, error } = await supabase
       .from('files')
-      .select('metadata->status')
+      .select('metadata->>status')
       .eq('owner_id', orgId)
       .neq('type', 'FOLDER');
 

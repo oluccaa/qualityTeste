@@ -1,3 +1,4 @@
+
 import { 
   User, 
   ClientOrganization,
@@ -9,7 +10,8 @@ import {
   QualityStatus,
   BreadcrumbItem,
   UserRole,
-  AccountStatus
+  AccountStatus,
+  SteelBatchMetadata
 } from '../../types/index.ts';
 
 // Interface para estatísticas do dashboard administrativo
@@ -74,7 +76,6 @@ export interface PaginatedResponse<T> {
  * SERVIÇO DE INFRAESTRUTURA (STORAGE & BASE FILES)
  */
 export interface IFileService {
-  // Fix: Added ownerId parameter to match implementation in SupabaseFileService and usage in hooks
   getRawFiles: (folderId: string | null, page?: number, pageSize?: number, searchTerm?: string, ownerId?: string) => Promise<PaginatedResponse<FileNode>>;
   getFiles: (user: User, folderId: string | null, page?: number, pageSize?: number, searchTerm?: string) => Promise<PaginatedResponse<FileNode>>;
   createFolder: (user: User, parentId: string | null, name: string, ownerId?: string) => Promise<FileNode>;
@@ -82,6 +83,7 @@ export interface IFileService {
   deleteFile: (user: User, fileIds: string[]) => Promise<void>;
   deleteFiles: (fileIds: string[]) => Promise<void>;
   renameFile: (user: User, fileId: string, newName: string) => Promise<void>;
+  updateFileMetadata: (fileId: string, metadata: Partial<SteelBatchMetadata>) => Promise<void>;
   getBreadcrumbs: (user: User, folderId: string | null) => Promise<BreadcrumbItem[]>;
   getSignedUrl: (path: string) => Promise<string>;
   getFileSignedUrl: (user: User, fileId: string) => Promise<string>;

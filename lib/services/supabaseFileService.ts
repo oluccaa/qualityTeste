@@ -1,45 +1,25 @@
+
 import { supabase } from '../supabaseClient.ts';
-import { FileNode, FileType, BreadcrumbItem, User, UserRole, FileFilters } from '../../types/index.ts';
+import { FileNode, FileType, BreadcrumbItem, User, UserRole, FileFilters, SteelBatchMetadata } from '../../types/index.ts';
 import { IFileService, PaginatedResponse, DashboardStatsData } from './interfaces.ts';
+import { toDomainFile } from '../mappers/fileMapper.ts';
 
 const STORAGE_BUCKET = 'certificates';
-
-const toDomainFile = (row: any): FileNode => ({
-  id: row.id,
-  parentId: row.parent_id,
-  name: row.name,
-  type: row.type as FileType,
-  size: row.size,
-  updatedAt: row.updated_at,
-  ownerId: row.owner_id,
-  storagePath: row.storage_path,
-  isFavorite: !!row.is_favorite,
-  metadata: row.metadata,
-  authorName: row.profiles?.full_name || 'Sistema',
-  versionNumber: row.version_number || 1
-});
 
 export const SupabaseFileService: IFileService = {
   getRawFiles: async (folderId, page = 1, pageSize = 50, searchTerm = '', ownerId, filters?: FileFilters): Promise<PaginatedResponse<FileNode>> => {
     let query = supabase.from('files').select('*, profiles:uploaded_by(full_name)', { count: 'exact' });
 
-    if (ownerId && ownerId !== 'global') {
-      query = query.eq('owner_id', ownerId);
-    }
+    if (ownerId && ownerId !== 'global') query = query.eq('owner_id', ownerId);
     
     if (!searchTerm) {
-      if (folderId) {
-        query = query.eq('parent_id', folderId);
-      } else {
-        query = query.is('parent_id', null);
-      }
+      if (folderId) query = query.eq('parent_id', folderId);
+      else query = query.is('parent_id', null);
     } else {
       query = query.ilike('name', `%${searchTerm}%`);
     }
 
-    if (filters?.type && filters.type !== 'ALL') {
-      query = query.eq('type', filters.type);
-    }
+    if (filters?.type && filters.type !== 'ALL') query = query.eq('type', filters.type);
 
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
@@ -59,7 +39,6 @@ export const SupabaseFileService: IFileService = {
   },
 
   getFiles: async (user, folderId, page = 1, pageSize = 50, searchTerm = '') => {
-    // Clientes só vêm seus próprios arquivos. Qualidade vê conforme o contexto.
     const effectiveOwnerId = user.role === UserRole.CLIENT ? user.organizationId : undefined;
     return SupabaseFileService.getRawFiles(folderId, page, pageSize, searchTerm, effectiveOwnerId);
   },
@@ -83,7 +62,16 @@ export const SupabaseFileService: IFileService = {
     
     const uniqueId = crypto.randomUUID();
     const folderPath = fileData.parentId || 'root';
-    const filePath = `${ownerId}/${folderPath}/${uniqueId}-${fileData.name}`;
+    
+    // FIX: Sanitização robusta para a KEY do Storage (Caminho físico)
+    // Remove acentos, espaços e caracteres especiais para evitar "Invalid key"
+    const sanitizedFileName = fileData.name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+      .replace(/\s+/g, "_")            // Troca espaços por underscore
+      .replace(/[^a-zA-Z0-9._-]/g, ""); // Remove o que sobrar de especial
+    
+    const filePath = `${ownerId}/${folderPath}/${uniqueId}-${sanitizedFileName}`;
     
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(STORAGE_BUCKET)
@@ -92,7 +80,7 @@ export const SupabaseFileService: IFileService = {
     if (uploadError) throw uploadError;
 
     const { data, error } = await supabase.from('files').insert({
-        name: fileData.name, 
+        name: fileData.name, // Mantém o nome original (amigável) para o usuário no banco
         type: fileData.type,
         parent_id: fileData.parentId,
         owner_id: ownerId,
@@ -107,8 +95,22 @@ export const SupabaseFileService: IFileService = {
     return toDomainFile(data);
   },
 
+  updateFileMetadata: async (fileId, metadata) => {
+    const { data: currentFile } = await supabase.from('files').select('metadata').eq('id', fileId).single();
+    const newMetadata = { ...(currentFile?.metadata || {}), ...metadata };
+    
+    const { error } = await supabase
+      .from('files')
+      .update({ 
+        metadata: newMetadata,
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', fileId);
+      
+    if (error) throw error;
+  },
+
   deleteFile: async (user, fileIds) => {
-    // 1. Obter caminhos de storage para deleção física
     const { data: items } = await supabase.from('files').select('storage_path, type').in('id', fileIds);
     const physicalPaths = (items || [])
       .filter(i => i.type !== FileType.FOLDER && i.storage_path !== 'system/folder')
@@ -118,7 +120,6 @@ export const SupabaseFileService: IFileService = {
       await supabase.storage.from(STORAGE_BUCKET).remove(physicalPaths);
     }
 
-    // 2. Deleção lógica no banco (cascade se configurado no DB)
     const { error } = await supabase.from('files').delete().in('id', fileIds);
     if (error) throw error;
   },
@@ -136,26 +137,16 @@ export const SupabaseFileService: IFileService = {
   getBreadcrumbs: async (user, currentFolderId) => {
     const breadcrumbs: BreadcrumbItem[] = [];
     let folderId = currentFolderId;
-    
-    // Limite de segurança de 8 níveis para evitar loops ou overhead
     let depth = 0;
     while (folderId && depth < 8) {
-      const { data, error } = await supabase
-        .from('files')
-        .select('id, name, parent_id')
-        .eq('id', folderId)
-        .maybeSingle();
-
+      const { data, error } = await supabase.from('files').select('id, name, parent_id').eq('id', folderId).maybeSingle();
       if (error || !data) break;
-
       breadcrumbs.unshift({ id: data.id, name: data.name });
       folderId = data.parent_id;
       depth++;
     }
-    
-    const rootName = user.role === UserRole.CLIENT ? 'Meu Drive Vital' : 'Explorador Global';
+    const rootName = user.role === UserRole.CLIENT ? 'Meu Drive Vital' : 'Global Cloud';
     breadcrumbs.unshift({ id: null, name: rootName });
-    
     return breadcrumbs;
   },
 
@@ -168,16 +159,15 @@ export const SupabaseFileService: IFileService = {
 
   getFileSignedUrl: async (user, fileId) => {
     const { data, error } = await supabase.from('files').select('storage_path').eq('id', fileId).single();
-    if (error || !data) throw new Error("Arquivo não localizado.");
+    if (error || !data) throw new Error("Ativo não localizado.");
     return SupabaseFileService.getSignedUrl(data.storage_path);
   },
 
-  getAuditLogs: async () => [], // Implementado no AdminService
+  getAuditLogs: async () => [], 
   
   getDashboardStats: async (user) => {
     const ownerId = user.role === UserRole.CLIENT ? user.organizationId : null;
-    let query = supabase.from('files').select('metadata->status', { count: 'exact' }).neq('type', 'FOLDER');
-    
+    let query = supabase.from('files').select('metadata->>status', { count: 'exact' }).neq('type', 'FOLDER');
     if (ownerId) query = query.eq('owner_id', ownerId);
     
     const { data } = await query;

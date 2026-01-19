@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, LogOut, Settings, ClipboardCheck } from 'lucide-react';
 import { getQualityMenuConfig } from '../../config/navigation.ts';
 import { User, UserRole } from '../../types/index.ts';
-import { LogoutConfirmation } from './Sidebar.tsx';
+// Fix: Corrected import source for LogoutConfirmation to its actual component file
+import { LogoutConfirmation } from './components/LogoutConfirmation.tsx';
 
 const LOGO_URL = "https://wtydnzqianhahiiasows.supabase.co/storage/v1/object/public/public_assets/hero/logo.png";
 const ISOTIPO_URL = "https://wtydnzqianhahiiasows.supabase.co/storage/v1/object/public/public_assets/hero/isotipo.png";

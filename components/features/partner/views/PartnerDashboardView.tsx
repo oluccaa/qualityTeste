@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { usePartnerDashboard } from '../hooks/usePartnerDashboard.ts';
-import { ShieldCheck, FileText, Clock, FileWarning, ArrowRight, Loader2 } from 'lucide-react';
+import { ShieldCheck, FileText, Clock, FileWarning, ArrowRight, Loader2, ClipboardCheck } from 'lucide-react';
 import { FileStatusBadge } from '../../files/components/FileStatusBadge.tsx';
 import { useSearchParams } from 'react-router-dom';
 
@@ -13,84 +13,84 @@ export const PartnerDashboardView: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[2.5rem] border border-dashed border-slate-200">
         <Loader2 className="animate-spin text-blue-500 mb-4" size={40} />
-        <p className="text-[10px] font-black uppercase tracking-[4px] text-slate-400">Sincronizando Ativos Vital...</p>
+        <p className="text-[10px] font-black uppercase tracking-[4px] text-slate-400">Sincronizando Vault Vital...</p>
       </div>
     );
   }
 
-  // Se após carregar não temos stats, mostramos um estado vazio amigável
-  if (!stats) {
-    return (
-      <div className="p-12 text-center bg-white rounded-[2.5rem] border border-slate-200 shadow-sm">
-        <ShieldCheck size={48} className="mx-auto text-slate-200 mb-4" />
-        <h3 className="text-slate-800 font-bold">Sem dados vinculados</h3>
-        <p className="text-slate-500 text-sm mt-2">Nenhum certificado foi emitido para sua conta ainda.</p>
-      </div>
-    );
-  }
-
-  const totalActions = stats.pendingValue || 0;
-  const hasActions = totalActions > 0;
+  const totalPending = stats?.pendingValue || 0;
+  const hasPending = totalPending > 0;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Card: Status de Auditoria do Parceiro */}
+        <div className={`p-6 rounded-[2.5rem] border shadow-xl flex flex-col justify-between transition-all relative overflow-hidden group ${
+          hasPending ? 'bg-orange-600 border-orange-500 text-white' : 'bg-white border-slate-200'
+        }`}>
+          <div className="relative z-10">
+            <div className="flex items-center gap-4 mb-4">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${
+                hasPending ? 'bg-white text-orange-600' : 'bg-slate-900 text-white'
+              }`}>
+                <ClipboardCheck size={24} />
+              </div>
+              <h3 className={`text-[10px] font-black uppercase tracking-[2px] ${hasPending ? 'text-white/70' : 'text-slate-400'}`}>Ações Pendentes</h3>
+            </div>
+            <div>
+              <p className="text-5xl font-black tracking-tighter">{totalPending}</p>
+              <p className={`text-[10px] font-bold uppercase mt-1 tracking-widest ${hasPending ? 'text-white/80' : 'text-orange-600'}`}>
+                {hasPending ? 'Certificados para Conferência' : 'Tudo em dia'}
+              </p>
+            </div>
+          </div>
+          {hasPending && (
+              <div className="absolute -right-4 -bottom-4 opacity-10 rotate-12">
+                  <FileWarning size={120} />
+              </div>
+          )}
+        </div>
+
         <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col justify-between">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-100">
-              <ShieldCheck size={20} />
+            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center border border-emerald-100 shadow-inner">
+              <ShieldCheck size={24} />
             </div>
-            <h3 className="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Conformidade</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Validados</h3>
           </div>
           <div>
-            <p className="text-4xl font-black text-slate-800 tracking-tighter">{stats.subValue}</p>
-            <p className="text-[10px] text-emerald-600 font-bold uppercase mt-1">Auditados com Sucesso</p>
+            <p className="text-4xl font-black text-slate-800 tracking-tighter">{stats?.subValue || 0}</p>
+            <p className="text-[10px] text-emerald-600 font-bold uppercase mt-1 tracking-widest">Documentação em Conformidade</p>
           </div>
         </div>
 
-        <div className={`p-6 rounded-[2.5rem] border shadow-sm flex flex-col justify-between transition-all ${
-          hasActions ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200'
-        }`}>
-          <div className="flex items-center gap-4 mb-4">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
-              hasActions ? 'bg-red-600 text-white animate-pulse' : 'bg-slate-50 text-slate-400'
-            }`}>
-              <FileWarning size={20} />
+        <div className="bg-[#081437] p-6 rounded-[2.5rem] text-white flex flex-col justify-between shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl" />
+          <div className="flex items-center gap-4 mb-4 relative z-10">
+            <div className="w-12 h-12 bg-white/10 text-blue-400 rounded-2xl flex items-center justify-center border border-white/5 shadow-lg">
+              <Clock size={24} />
             </div>
-            <h3 className="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Pendente</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-[2px] text-slate-500">Base Sincronizada</h3>
           </div>
-          <div>
-            <p className={`text-4xl font-black tracking-tighter ${hasActions ? 'text-red-600' : 'text-slate-800'}`}>
-              {totalActions}
-            </p>
-            <p className={`text-[10px] font-bold uppercase ${hasActions ? 'text-red-500' : 'text-slate-400'}`}>
-              {hasActions ? 'Aguardando sua conferência' : 'Nenhuma Pendência'}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-[#081437] p-6 rounded-[2.5rem] text-white flex flex-col justify-between shadow-xl">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-10 h-10 bg-white/10 text-blue-400 rounded-xl flex items-center justify-center">
-              <Clock size={20} />
-            </div>
-            <h3 className="text-[10px] font-black uppercase tracking-[2px] text-slate-500">Última Atualização</h3>
-          </div>
-          <div>
-            <p className="text-xl font-bold">{stats.lastAnalysis ? new Date(stats.lastAnalysis).toLocaleDateString() : '--/--/----'}</p>
-            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-widest">Base de Dados Vital</p>
+          <div className="relative z-10">
+            <p className="text-2xl font-black tracking-tight">{stats?.lastAnalysis ? new Date(stats.lastAnalysis).toLocaleDateString() : '--/--/----'}</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-[3px]">Protocolo Vital SGQ</p>
           </div>
         </div>
       </div>
 
+      {/* Seção de Arquivos Recentes */}
       <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
         <header className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-          <h4 className="text-xs font-black text-slate-800 uppercase tracking-[3px]">Arquivos Recentes</h4>
+          <div className="flex items-center gap-3">
+             <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse" />
+             <h4 className="text-xs font-black text-slate-800 uppercase tracking-[3px]">Últimos Certificados Recebidos</h4>
+          </div>
           <button 
             onClick={() => setSearchParams({ view: 'library' })}
-            className="text-[9px] font-black text-blue-600 uppercase tracking-widest hover:underline"
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-[9px] font-black text-slate-600 uppercase tracking-widest rounded-xl transition-all"
           >
-            Ver Biblioteca Completa
+            Acessar Biblioteca
           </button>
         </header>
         <div className="divide-y divide-slate-50">
@@ -98,26 +98,30 @@ export const PartnerDashboardView: React.FC = () => {
             <div 
               key={file.id} 
               onClick={() => setSearchParams({ view: 'library', folderId: file.parentId || '' })}
-              className="flex items-center justify-between p-6 hover:bg-slate-50 transition-all group cursor-pointer"
+              className="flex items-center justify-between p-6 hover:bg-blue-50/30 transition-all group cursor-pointer"
             >
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-slate-50 text-slate-400 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all">
-                  <FileText size={20} />
+              <div className="flex items-center gap-5">
+                <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center border border-slate-100 group-hover:bg-[#081437] group-hover:text-blue-400 transition-all shadow-sm">
+                  <FileText size={24} />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-800 leading-tight">{file.name}</p>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <span className="text-[10px] text-slate-400 font-mono">{file.size}</span>
+                  <p className="text-sm font-black text-slate-800 leading-tight uppercase tracking-tight">{file.name}</p>
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <span className="text-[10px] text-slate-400 font-bold font-mono bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">{file.size}</span>
                     <FileStatusBadge status={file.metadata?.status} />
                   </div>
                 </div>
               </div>
-              <ArrowRight size={18} className="text-slate-200 group-hover:text-blue-500" />
+              <div className="flex items-center gap-3">
+                  <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Auditar Agora</span>
+                  <ArrowRight size={20} className="text-slate-200 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+              </div>
             </div>
           ))}
           {recentFiles.length === 0 && (
-            <div className="py-20 text-center text-slate-400 italic text-sm">
-              Nenhum certificado identificado nesta conta.
+            <div className="py-24 text-center text-slate-400 italic">
+              <ShieldCheck size={48} className="mx-auto mb-4 opacity-10" />
+              <p className="text-sm font-medium">Nenhum certificado pendente de conferência.</p>
             </div>
           )}
         </div>

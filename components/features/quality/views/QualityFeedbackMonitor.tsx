@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../../../lib/supabaseClient.ts';
@@ -16,10 +17,10 @@ export const QualityFeedbackMonitor: React.FC = () => {
     const fetchInteractions = async () => {
       setLoading(true);
       try {
-        // Busca arquivos que tiveram interação do cliente ou estão em estados críticos
+        // FIX: Especificamos !files_owner_fkey com base na definição SQL fornecida anteriormente
         const { data, error } = await supabase
           .from('files')
-          .select('*, organizations!owner_id(name)')
+          .select('*, organizations!files_owner_fkey(name)')
           .or(`metadata->>status.eq.${QualityStatus.REJECTED},metadata->>status.eq.${QualityStatus.APPROVED},metadata->>status.eq.${QualityStatus.TO_DELETE}`)
           .not('metadata->>lastClientInteractionAt', 'is', null)
           .order('metadata->>lastClientInteractionAt', { ascending: false })
@@ -60,7 +61,6 @@ export const QualityFeedbackMonitor: React.FC = () => {
   );
 };
 
-// Fix: Declaring as React.FC to ensure key and other React props are properly handled by TypeScript during map iteration
 const InteractionCard: React.FC<{ file: any, onInspect: () => void }> = ({ file, onInspect }) => {
   const metadata = file.metadata;
   const isRejected = metadata?.status === QualityStatus.REJECTED;
@@ -74,7 +74,6 @@ const InteractionCard: React.FC<{ file: any, onInspect: () => void }> = ({ file,
       }`} />
 
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* Identificação do Certificado */}
         <div className="lg:w-1/3 space-y-3">
           <div className="flex items-center gap-2">
             <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase border ${
@@ -94,7 +93,6 @@ const InteractionCard: React.FC<{ file: any, onInspect: () => void }> = ({ file,
           </div>
         </div>
 
-        {/* Conteúdo do Feedback */}
         <div className="flex-1 bg-slate-50 rounded-2xl p-4 border border-slate-100 relative">
            <MessageSquare size={32} className="absolute bottom-4 right-4 opacity-5 text-slate-400" />
            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -103,16 +101,8 @@ const InteractionCard: React.FC<{ file: any, onInspect: () => void }> = ({ file,
            <p className="text-xs text-slate-700 font-medium italic leading-relaxed">
              "{metadata?.clientObservations || 'O cliente não forneceu detalhes adicionais.'}"
            </p>
-           {metadata?.clientFlags && metadata.clientFlags.length > 0 && (
-             <div className="mt-3 flex flex-wrap gap-1">
-                {metadata.clientFlags.map((f: string) => (
-                  <span key={f} className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[8px] font-bold text-slate-500 uppercase">{f}</span>
-                ))}
-             </div>
-           )}
         </div>
 
-        {/* Ação */}
         <div className="lg:w-48 flex items-center justify-end">
           <button 
             onClick={onInspect}

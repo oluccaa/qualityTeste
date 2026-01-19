@@ -1,9 +1,11 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../../context/authContext.tsx';
 import { useTranslation } from 'react-i18next';
 import { FileNode, FileType, UserRole } from '../../../../types/index.ts';
-import { useFileExplorer } from '../../files/hooks/useFileExplorer.ts';
+import { useFileCollection } from '../../files/hooks/useFileCollection.ts';
+import { useFileOperations } from '../../files/hooks/useFileOperations.ts';
 import { FileExplorer, FileExplorerHandle } from '../../files/FileExplorer.tsx';
 import { ExplorerToolbar } from '../../files/components/ExplorerToolbar.tsx';
 import { FilePreviewModal } from '../../files/FilePreviewModal.tsx';
@@ -14,7 +16,6 @@ import { DeleteConfirmationModal } from '../../files/modals/DeleteConfirmationMo
 import { QualityLoadingState, ProcessingOverlay } from '../components/ViewStates.tsx';
 import { fileService } from '../../../../lib/services/index.ts';
 import { supabase } from '../../../../lib/supabaseClient.ts';
-import { Info, FileText, Clock, ShieldCheck, User } from 'lucide-react';
 
 interface FileExplorerViewProps {
   orgId: string;
@@ -26,35 +27,33 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
   const [searchParams, setSearchParams] = useSearchParams();
   
   const currentFolderId = searchParams.get('folderId');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => 
+    (localStorage.getItem('explorer_view_mode') as 'grid' | 'list') || 'grid'
+  );
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [selectedFileForPreview, setSelectedFileForPreview] = useState<FileNode | null>(null);
-  const [showInfoPanel, setShowInfoPanel] = useState(true);
   
   const [isReady, setIsReady] = useState(false);
-  const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
-  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
-  const [fileToRename, setFileToRename] = useState<FileNode | null>(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [modals, setModals] = useState({
+    upload: false, folder: false, rename: false, delete: false
+  });
   
+  const [fileToRename, setFileToRename] = useState<FileNode | null>(null);
   const fileExplorerRef = useRef<FileExplorerHandle>(null);
+
+  const handleViewChange = (mode: 'grid' | 'list') => {
+    setViewMode(mode);
+    localStorage.setItem('explorer_view_mode', mode);
+  };
 
   useEffect(() => {
     const resolveInitialFolder = async () => {
       if (orgId && orgId !== 'global' && !currentFolderId) {
         setIsReady(false);
-        const { data } = await supabase.from('files')
-          .select('id')
-          .eq('owner_id', orgId)
-          .is('parent_id', null)
-          .maybeSingle();
-          
+        const { data } = await supabase.from('files').select('id').eq('owner_id', orgId).is('parent_id', null).maybeSingle();
         if (data?.id) {
-            setSearchParams(p => { p.set('folderId', data.id); p.set('orgId', orgId); return p; }, { replace: true });
+          setSearchParams(p => { p.set('folderId', data.id); p.set('orgId', orgId); return p; }, { replace: true });
         }
       }
       setIsReady(true);
@@ -62,12 +61,10 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
     resolveInitialFolder();
   }, [orgId, currentFolderId, setSearchParams]);
 
-  const {
-    files, loading, breadcrumbs,
-    handleDeleteFiles, handleRenameFile, handleCreateFolder, handleUploadFile
-  } = useFileExplorer({ currentFolderId, searchTerm, viewMode, ownerId: orgId });
+  const collection = useFileCollection({ currentFolderId, searchTerm, ownerId: orgId });
+  const ops = useFileOperations(orgId, () => collection.fetchFiles(true));
 
-  const activeSelectedFile = files.find(f => f.id === selectedFileIds[selectedFileIds.length - 1]) || null;
+  const activeSelectedFile = collection.files.find(f => f.id === selectedFileIds[selectedFileIds.length - 1]) || null;
 
   const handleNavigate = useCallback((folderId: string | null) => {
     setSelectedFileIds([]);
@@ -79,124 +76,60 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
     }, { replace: true });
   }, [setSearchParams, orgId]);
 
-  const toggleSelection = (id: string) => {
-    setSelectedFileIds(prev => 
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
-  };
-
-  if (!isReady) return <QualityLoadingState message="Acessando Repositório..." />;
+  if (!isReady) return <QualityLoadingState message="Sincronizando Vault..." />;
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 rounded-[2.5rem] border border-slate-200 shadow-2xl overflow-hidden min-h-[700px] animate-in fade-in duration-700">
-      {isProcessing && <ProcessingOverlay message="Atualizando Ledger..." />}
+    <div className="flex flex-col h-full bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden animate-in fade-in duration-500">
+      {ops.isProcessing && <ProcessingOverlay message="Atualizando Base de Dados..." />}
       
       <FilePreviewModal 
-        initialFile={selectedFileForPreview}
-        isOpen={isPreviewOpen} 
-        onClose={() => setIsPreviewOpen(false)} 
-        onDownloadFile={async (f) => {
-            const url = await fileService.getFileSignedUrl(user!, f.id);
-            window.open(url, '_blank');
-        }}
+        initialFile={selectedFileForPreview} 
+        isOpen={!!selectedFileForPreview} 
+        onClose={() => { setSelectedFileForPreview(null); collection.fetchFiles(true); }} 
+      />
+      
+      <UploadFileModal isOpen={modals.upload} onClose={() => setModals(m => ({...m, upload: false}))} onUpload={async (f, n) => { await ops.handleUpload(f, n, currentFolderId); setModals(m => ({...m, upload: false})); }} isUploading={ops.isProcessing} currentFolderId={currentFolderId} />
+      <CreateFolderModal isOpen={modals.folder} onClose={() => setModals(m => ({...m, folder: false}))} onCreate={async (n) => { await ops.handleCreateFolder(n, currentFolderId); setModals(m => ({...m, folder: false})); }} isCreating={ops.isProcessing} />
+      <RenameModal isOpen={modals.rename} onClose={() => setModals(m => ({...m, rename: false}))} onRename={async (n) => { await ops.handleRename(fileToRename!.id, n); setModals(m => ({...m, rename: false})); }} isRenaming={ops.isProcessing} currentName={fileToRename?.name || ''} />
+      <DeleteConfirmationModal isOpen={modals.delete} onClose={() => setModals(m => ({...m, delete: false}))} onConfirm={async () => { await ops.handleDelete(selectedFileIds); setModals(m => ({...m, delete: false})); setSelectedFileIds([]); }} isDeleting={ops.isProcessing} itemCount={selectedFileIds.length} hasFolder={collection.files.some(f => selectedFileIds.includes(f.id) && f.type === FileType.FOLDER)} />
+
+      <ExplorerToolbar 
+        breadcrumbs={collection.breadcrumbs} 
+        onNavigate={handleNavigate} 
+        searchTerm={searchTerm} 
+        onSearchChange={setSearchTerm} 
+        onUploadClick={() => setModals(m => ({...m, upload: true}))} 
+        onCreateFolderClick={() => setModals(m => ({...m, folder: true}))} 
+        selectedCount={selectedFileIds.length} 
+        onDeleteSelected={() => setModals(m => ({...m, delete: true}))} 
+        onRenameSelected={() => { if(activeSelectedFile) { setFileToRename(activeSelectedFile); setModals(m => ({...m, rename: true})); } }} 
+        onDownloadSelected={async () => { if(activeSelectedFile) { const url = await fileService.getFileSignedUrl(user!, activeSelectedFile.id); window.open(url, '_blank'); } }} 
+        viewMode={viewMode} 
+        onViewChange={handleViewChange} 
+        userRole={user?.role as UserRole} 
+        selectedFilesData={collection.files.filter(f => selectedFileIds.includes(f.id))} 
       />
 
-      <UploadFileModal isOpen={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)} onUpload={async (f, n) => { setIsProcessing(true); await handleUploadFile(f, n, currentFolderId); setIsUploadModalOpen(false); setIsProcessing(false); }} isUploading={isProcessing} currentFolderId={currentFolderId} />
-      <CreateFolderModal isOpen={isCreateFolderModalOpen} onClose={() => setIsCreateFolderModalOpen(false)} onCreate={async (n) => { setIsProcessing(true); await handleCreateFolder(n, currentFolderId); setIsCreateFolderModalOpen(false); setIsProcessing(false); }} isCreating={isProcessing} />
-      <RenameModal isOpen={isRenameModalOpen} onClose={() => setIsRenameModalOpen(false)} onRename={async (n) => { setIsProcessing(true); await handleRenameFile(fileToRename!.id, n); setIsRenameModalOpen(false); setIsProcessing(false); }} isRenaming={isProcessing} currentName={fileToRename?.name || ''} />
-      <DeleteConfirmationModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={async () => { setIsProcessing(true); await handleDeleteFiles(selectedFileIds); setIsDeleteModalOpen(false); setSelectedFileIds([]); setIsProcessing(false); }} isDeleting={isProcessing} itemCount={selectedFileIds.length} hasFolder={files.some(f => selectedFileIds.includes(f.id) && f.type === FileType.FOLDER)} />
-
-      <ExplorerToolbar
-        breadcrumbs={breadcrumbs}
-        onNavigate={handleNavigate}
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        onUploadClick={() => setIsUploadModalOpen(true)} 
-        onCreateFolderClick={() => setIsCreateFolderModalOpen(true)}
-        selectedCount={selectedFileIds.length}
-        onDeleteSelected={() => setIsDeleteModalOpen(true)} 
-        onRenameSelected={() => { if(activeSelectedFile) { setFileToRename(activeSelectedFile); setIsRenameModalOpen(true); } }}
-        onDownloadSelected={async () => { if(activeSelectedFile) { const url = await fileService.getFileSignedUrl(user!, activeSelectedFile.id); window.open(url, '_blank'); } }}
-        viewMode={viewMode}
-        onViewChange={setViewMode}
-        userRole={user?.role as UserRole}
-        selectedFilesData={files.filter(f => selectedFileIds.includes(f.id))}
-      />
-
-      <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 overflow-hidden flex flex-col bg-white">
-          <FileExplorer 
-            ref={fileExplorerRef}
-            files={files} 
-            loading={loading}
-            currentFolderId={currentFolderId}
-            searchTerm={searchTerm}
-            breadcrumbs={breadcrumbs}
-            selectedFileIds={selectedFileIds}
-            onToggleFileSelection={toggleSelection}
-            onNavigate={handleNavigate}
-            onFileSelectForPreview={(f) => { setSelectedFileForPreview(f); setIsPreviewOpen(true); }}
-            onDownloadFile={() => {}}
-            onRenameFile={(f) => { setFileToRename(f); setIsRenameModalOpen(true); }}
-            onDeleteFile={(id) => { setSelectedFileIds([id]); setIsDeleteModalOpen(true); }}
-            viewMode={viewMode}
-            userRole={user?.role as UserRole}
-          />
-        </div>
-
-        {showInfoPanel && (
-          <aside className="w-80 border-l border-slate-100 bg-white hidden xl:flex flex-col animate-in slide-in-from-right duration-500">
-            <div className="p-6 border-b border-slate-50 flex items-center justify-between">
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                    <Info size={16} className="text-blue-500" /> Detalhes
-                </h3>
-                <button onClick={() => setShowInfoPanel(false)} className="text-slate-400 hover:text-slate-600">×</button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
-                {activeSelectedFile ? (
-                   <>
-                    <div className="flex flex-col items-center text-center">
-                        <div className="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 shadow-inner">
-                            {activeSelectedFile.type === FileType.FOLDER ? <FileText size={40} className="text-blue-500 opacity-20" /> : <FileText size={40} className="text-slate-400" />}
-                        </div>
-                        <h4 className="text-sm font-bold text-slate-900 break-all leading-tight">{activeSelectedFile.name}</h4>
-                    </div>
-
-                    <div className="space-y-4 pt-4 border-t border-slate-50">
-                        <InfoItem icon={ShieldCheck} label="Status Vital" value={activeSelectedFile.metadata?.status || 'Pendente'} color="text-emerald-600" />
-                        <InfoItem icon={Clock} label="Última Sincronização" value={new Date(activeSelectedFile.updatedAt).toLocaleDateString()} />
-                        <InfoItem icon={User} label="Autor do Ativo" value={activeSelectedFile.authorName || 'Sistema'} />
-                        <InfoItem icon={FileText} label="Dimensão" value={activeSelectedFile.size || '--'} />
-                    </div>
-
-                    {activeSelectedFile.metadata && (
-                        <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50 space-y-2">
-                            <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Protocolo Metalúrgico</p>
-                            <p className="text-xs text-blue-800 font-bold">Lote: {activeSelectedFile.metadata.batchNumber || 'N/A'}</p>
-                            <p className="text-xs text-blue-700">Norma: {activeSelectedFile.metadata.grade || 'N/A'}</p>
-                        </div>
-                    )}
-                   </>
-                ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-300 text-center space-y-4 opacity-50">
-                        <FileText size={48} />
-                        <p className="text-xs font-bold uppercase tracking-widest leading-relaxed">Selecione um recurso para visualizar metadados técnicos</p>
-                    </div>
-                )}
-            </div>
-          </aside>
-        )}
+      {/* Ocupa todo o resto da altura disponível e provê contexto relativo para o scroll absoluto do FileExplorer */}
+      <div className="flex-1 relative bg-slate-50/50">
+        <FileExplorer 
+            ref={fileExplorerRef} 
+            files={collection.files} 
+            loading={collection.loading} 
+            currentFolderId={currentFolderId} 
+            searchTerm={searchTerm} 
+            breadcrumbs={collection.breadcrumbs} 
+            selectedFileIds={selectedFileIds} 
+            onToggleFileSelection={(id) => setSelectedFileIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])} 
+            onNavigate={handleNavigate} 
+            onFileSelectForPreview={(f) => setSelectedFileForPreview(f)} 
+            onDownloadFile={() => {}} 
+            onRenameFile={(f) => { setFileToRename(f); setModals(m => ({...m, rename: true})); }} 
+            onDeleteFile={(id) => { setSelectedFileIds([id]); setModals(m => ({...m, delete: true})); }} 
+            viewMode={viewMode} 
+            userRole={user?.role as UserRole} 
+        />
       </div>
     </div>
   );
 };
-
-const InfoItem = ({ icon: Icon, label, value, color = "text-slate-600" }: any) => (
-    <div className="space-y-1">
-        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-            <Icon size={12} /> {label}
-        </p>
-        <p className={`text-xs font-bold ${color}`}>{value}</p>
-    </div>
-);
