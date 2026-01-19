@@ -37,14 +37,14 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   // Handler to reset error state and reload the application
   private handleReset = () => {
-    // Fix: Accessing setState through casting to bypass TS errors if inheritance chain is broken in environment
-    (this as any).setState({ hasError: false, error: undefined });
+    // Fix: Accessing setState through React.Component inheritance
+    this.setState({ hasError: false, error: undefined });
     window.location.reload();
   };
 
   public render(): ReactNode {
-    // Fix: Accessing state and props through casting to bypass TS errors
-    if (!(this as any).state.hasError) return (this as any).props.children;
+    // Fix: Accessing state and props through React.Component inheritance
+    if (!this.state.hasError) return this.props.children;
 
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">

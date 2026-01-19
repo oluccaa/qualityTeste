@@ -1,3 +1,4 @@
+
 import { ID, ISO8601Date } from './common.ts';
 import { QualityStatus } from './enums.ts';
 
@@ -15,44 +16,49 @@ export interface MechanicalProperties {
   elongation: number;
 }
 
+export interface AuditStepRecord {
+  step: number;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
+  timestamp?: ISO8601Date;
+  performedBy?: string;
+  notes?: string;
+}
+
 export interface SteelBatchMetadata {
   batchNumber: string;
   grade: string;
   invoiceNumber: string;
   
+  // Custom Flags (Editáveis e persistentes)
   customFlags?: string[];
+  
+  // Controle de Fluxo
   currentStep: number;
   
-  // Etapa 1: Liberação Vital
+  // Etapa 1: Liberação Técnica Vital (QUALITY/ADMIN)
   releasedAt?: ISO8601Date;
   releasedBy?: string;
 
-  // Etapa 2: Conferência Documental Independente
+  // Etapa 2: Conferência Documental (CLIENT)
   documentalStatus?: QualityStatus;
   documentalNotes?: string;
-  documentalUnlockedAt?: ISO8601Date;
-  documentalUnlockedBy?: string;
-  documentalVersion?: number;
 
-  // Etapa 3: Conferência Física Independente
+  // Etapa 3: Conferência Física (CLIENT)
   physicalStatus?: QualityStatus;
   physicalNotes?: string;
-  physicalUnlockedAt?: ISO8601Date;
-  physicalUnlockedBy?: string;
-  physicalVersion?: number;
 
-  // Metadados de interação
+  // Metadados de interação do cliente
   clientObservations?: string;
   viewedAt?: ISO8601Date;
   lastClientInteractionAt?: string;
   lastClientInteractionBy?: string;
 
-  // Etapa 4: Mediação Técnica
+  // Etapa 4: Mediação Técnica Vital (QUALITY/ADMIN)
   remediationReply?: string;
   remediatedAt?: ISO8601Date;
   remediatedBy?: string;
 
-  // Etapa 5: Veredito Final
+  // Etapa 5: Veredito Final do Parceiro (CLIENT)
   finalPartnerVerdict?: QualityStatus;
   finalVerdictAt?: ISO8601Date;
 
@@ -61,8 +67,6 @@ export interface SteelBatchMetadata {
   chemicalComposition: ChemicalComposition;
   mechanicalProperties: MechanicalProperties;
   rejectionReason?: string;
-
-  // FIX: Added missing properties for inspection traceability
   inspectedAt?: ISO8601Date;
   inspectedBy?: string;
 }
