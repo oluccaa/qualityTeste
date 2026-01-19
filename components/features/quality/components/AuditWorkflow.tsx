@@ -1,8 +1,8 @@
-
 import React, { useState } from 'react';
 import { 
   Check, Send, RefreshCcw, ShieldCheck, 
-  AlertTriangle, Plus, X, MessageSquare, Clock, FileCheck, Mail, Info, UserX
+  AlertTriangle, MessageSquare, Clock, FileCheck, Mail, Info, UserX,
+  FileText, Ruler
 } from 'lucide-react';
 import { SteelBatchMetadata, QualityStatus, UserRole } from '../../../../types/index.ts';
 
@@ -17,18 +17,16 @@ interface AuditWorkflowProps {
 
 export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole, userName, userEmail, onUpdate }) => {
   const [localRemediation, setLocalRemediation] = useState('');
-  const [localObservations, setLocalObservations] = useState('');
+  const [localDocNotes, setLocalDocNotes] = useState(metadata?.documentalNotes || '');
+  const [localPhysNotes, setLocalPhysNotes] = useState(metadata?.physicalNotes || '');
 
   const isAnalyst = userRole === UserRole.QUALITY || userRole === UserRole.ADMIN;
   const isClient = userRole === UserRole.CLIENT;
   const currentStep = metadata?.currentStep || 1;
 
-  // Lógica de extração do e-mail real do auditor/cliente
   const lastInteractionData = metadata?.lastClientInteractionBy || '';
   const hasSeparator = lastInteractionData.includes(' | ');
   
-  // Se tiver o separador, pegamos o e-mail. Se não tiver (registro antigo), 
-  // e o usuário atual for o cliente, mostramos o e-mail dele como referência.
   const clientName = hasSeparator 
     ? lastInteractionData.split(' | ')[0] 
     : (lastInteractionData || 'Representante Técnico');
@@ -37,34 +35,30 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole
     ? lastInteractionData.split(' | ')[1] 
     : (isClient ? userEmail : '');
 
-  // Finalização das Conferências (Passo 2)
   const handleClientConferences = async (docStatus: QualityStatus, physStatus: QualityStatus) => {
     if (!isClient) return;
     const isFullyApproved = docStatus === QualityStatus.APPROVED && physStatus === QualityStatus.APPROVED;
     
     await onUpdate({
       documentalStatus: docStatus,
+      documentalNotes: localDocNotes,
       physicalStatus: physStatus,
-      clientObservations: localObservations,
+      physicalNotes: localPhysNotes,
       lastClientInteractionAt: new Date().toISOString(),
-      // CRITICAL: Garante que o e-mail real da conta que está logada seja gravado
       lastClientInteractionBy: `${userName} | ${userEmail}`,
       currentStep: isFullyApproved ? 7 : 4,
       status: isFullyApproved ? QualityStatus.APPROVED : QualityStatus.REJECTED
     });
   };
 
-  // Veredito do Parceiro (Passo 4/5)
+  // Fix: Added missing handlePartnerVerdict function to process partner decision
   const handlePartnerVerdict = async (verdict: QualityStatus) => {
     if (!isClient) return;
-    await onUpdate({ 
-      currentStep: verdict === QualityStatus.APPROVED ? 7 : 6, 
-      status: verdict, 
-      finalPartnerVerdict: verdict, 
-      finalVerdictAt: new Date().toISOString(), 
-      // CRITICAL: Garante que o e-mail real da conta que está logada seja gravado no impasse
-      lastClientInteractionBy: `${userName} | ${userEmail}`,
-      lastClientInteractionAt: new Date().toISOString()
+    await onUpdate({
+      finalPartnerVerdict: verdict,
+      finalVerdictAt: new Date().toISOString(),
+      currentStep: verdict === QualityStatus.APPROVED ? 7 : 6,
+      status: verdict
     });
   };
 
@@ -98,74 +92,88 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole
         )}
       </StepCard>
 
-      {/* ETAPA 2: CONFERÊNCIA DE RECEBIMENTO */}
+      {/* ETAPA 2: CONFERÊNCIAS DE RECEBIMENTO (DESMEMBRADAS) */}
       <StepCard 
         number={2} 
-        title="Conferência de Recebimento" 
+        title="Conferências de Recebimento" 
         status={currentStep === 2 ? 'active' : currentStep > 2 ? 'done' : 'locked'}
-        description="O parceiro valida a documentação e a integridade física do material."
+        description="Validação documental e inspeção física dos materiais recebidos."
       >
-        <div className="space-y-6">
+        <div className="space-y-8">
            {currentStep === 2 ? (
              isClient ? (
-               <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-500">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="space-y-8 animate-in slide-in-from-bottom-2 duration-500">
+                  {/* CONFERÊNCIA DOCUMENTAL */}
+                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-[1.5rem] space-y-4">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-blue-600 text-white rounded-lg"><FileText size={16} /></div>
+                        <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-widest">2.A - Auditoria Documental</h4>
+                      </div>
                       <div className="space-y-2">
-                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">A) Conferência Documental</label>
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Status dos Certificados / NF</label>
                           <select 
                             className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-bold"
                             value={metadata?.documentalStatus || ''}
                             onChange={(e) => onUpdate({ documentalStatus: e.target.value as QualityStatus })}
                           >
                               <option value="">Selecionar...</option>
-                              <option value={QualityStatus.APPROVED}>Conforme</option>
-                              <option value={QualityStatus.REJECTED}>Divergente</option>
+                              <option value={QualityStatus.APPROVED}>Certificado Conforme</option>
+                              <option value={QualityStatus.REJECTED}>Divergência Documental</option>
                           </select>
                       </div>
+                      <textarea 
+                          className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20"
+                          placeholder="Observações sobre a documentação..."
+                          value={localDocNotes}
+                          onChange={(e) => setLocalDocNotes(e.target.value)}
+                      />
+                  </div>
+
+                  {/* CONFERÊNCIA FÍSICA */}
+                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-[1.5rem] space-y-4">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-orange-600 text-white rounded-lg"><Ruler size={16} /></div>
+                        <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-widest">2.B - Auditoria Física</h4>
+                      </div>
                       <div className="space-y-2">
-                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">B) Conferência Física</label>
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Estado Físico do Material</label>
                           <select 
                             className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-bold"
                             value={metadata?.physicalStatus || ''}
                             onChange={(e) => onUpdate({ physicalStatus: e.target.value as QualityStatus })}
                           >
                               <option value="">Selecionar...</option>
-                              <option value={QualityStatus.APPROVED}>Conforme</option>
-                              <option value={QualityStatus.REJECTED}>Divergente</option>
+                              <option value={QualityStatus.APPROVED}>Material Conforme</option>
+                              <option value={QualityStatus.REJECTED}>Avaria ou Erro Dimensional</option>
                           </select>
                       </div>
-                  </div>
-                  <div className="space-y-2">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Observações do Recebimento</label>
                       <textarea 
-                          className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium outline-none focus:bg-white"
-                          placeholder="Caso haja divergência, descreva aqui..."
-                          value={localObservations}
-                          onChange={(e) => setLocalObservations(e.target.value)}
+                          className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-orange-500/20"
+                          placeholder="Observações sobre o estado físico..."
+                          // Fix: Corrected typo in state variable name localPhysPhysNotes to localPhysNotes
+                          value={localPhysNotes}
+                          onChange={(e) => setLocalPhysNotes(e.target.value)}
                       />
                   </div>
+
                   <button 
                     onClick={() => handleClientConferences(metadata?.documentalStatus || QualityStatus.APPROVED, metadata?.physicalStatus || QualityStatus.APPROVED)}
-                    className="w-full py-4 bg-[#b23c0e] text-white rounded-2xl font-black text-[10px] uppercase tracking-[3px] shadow-xl shadow-orange-900/20"
+                    disabled={!metadata?.documentalStatus || !metadata?.physicalStatus}
+                    className="w-full py-4 bg-[#b23c0e] text-white rounded-2xl font-black text-[10px] uppercase tracking-[3px] shadow-xl shadow-orange-900/20 disabled:opacity-50 disabled:grayscale transition-all"
                   >
-                    Finalizar Conferência
+                    Finalizar Ambas Conferências
                   </button>
                </div>
              ) : (
                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-3 text-slate-500">
                     <Clock size={16} className="text-orange-500" />
-                    <p className="text-[10px] font-black uppercase tracking-widest">Aguardando conferência do cliente</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest">Aguardando auditorias documentais e físicas do cliente</p>
                 </div>
              )
            ) : (
-             <div className="space-y-3">
-                <StatusRow label="Documentação" status={metadata?.documentalStatus} />
-                <StatusRow label="Material Físico" status={metadata?.physicalStatus} />
-                {metadata?.clientObservations && (
-                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-xs italic text-slate-600">
-                        "{metadata.clientObservations}"
-                    </div>
-                )}
+             <div className="space-y-4">
+                <StatusRow label="Conferência Documental" status={metadata?.documentalStatus} notes={metadata?.documentalNotes} icon={<FileText size={14}/>} />
+                <StatusRow label="Conferência Física" status={metadata?.physicalStatus} notes={metadata?.physicalNotes} icon={<Ruler size={14}/>} />
              </div>
            )}
         </div>
@@ -340,8 +348,6 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole
   );
 };
 
-/* --- Componentes de UI Localizados (SRP) --- */
-
 const StepCard = ({ number, title, status, description, children }: any) => {
   const isActive = status === 'active';
   const isDone = status === 'done';
@@ -390,15 +396,25 @@ const StepBadge = ({ user, date, label, notes, isPositive }: any) => (
   </div>
 );
 
-const StatusRow = ({ label, status }: { label: string, status?: QualityStatus }) => (
-    <div className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl">
-        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{label}</span>
-        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase border ${
-            status === QualityStatus.APPROVED ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
-            status === QualityStatus.REJECTED ? 'bg-red-50 text-red-600 border-red-100' :
-            'bg-slate-50 text-slate-400 border-slate-100'
-        }`}>
-            {status || 'Pendente'}
-        </span>
+const StatusRow = ({ label, status, notes, icon }: { label: string, status?: QualityStatus, notes?: string, icon?: React.ReactNode }) => (
+    <div className="space-y-2">
+        <div className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-[1.2rem] shadow-sm">
+            <div className="flex items-center gap-3">
+                <div className="text-slate-400">{icon}</div>
+                <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{label}</span>
+            </div>
+            <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase border ${
+                status === QualityStatus.APPROVED ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
+                status === QualityStatus.REJECTED ? 'bg-red-50 text-red-600 border-red-100' :
+                'bg-slate-50 text-slate-400 border-slate-100'
+            }`}>
+                {status === QualityStatus.APPROVED ? 'Conforme' : status === QualityStatus.REJECTED ? 'Divergente' : 'Pendente'}
+            </span>
+        </div>
+        {notes && (
+            <div className="ml-8 p-3 bg-slate-50/50 rounded-xl border border-slate-100 text-[10px] text-slate-500 italic">
+                {notes}
+            </div>
+        )}
     </div>
 );
