@@ -34,8 +34,8 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole
       clientObservations: localObservations,
       lastClientInteractionAt: new Date().toISOString(),
       lastClientInteractionBy: userName,
-      // Se aprovar tudo, pula para finalizado (Passo 5), senão vai para Mediação (Passo 4)
-      currentStep: isFullyApproved ? 5 : 4,
+      // Se aprovar tudo, pula para finalizado (Passo 7), senão vai para Mediação (Passo 4)
+      currentStep: isFullyApproved ? 7 : 4,
       status: isFullyApproved ? QualityStatus.APPROVED : QualityStatus.REJECTED
     };
 
@@ -72,7 +72,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole
         )}
       </StepCard>
 
-      {/* ETAPA 2 & 3: CONFERÊNCIA DOCUMENTAL E FÍSICA (AGRUPADAS POR CONTEXTO) */}
+      {/* ETAPA 2: CONFERÊNCIA DE RECEBIMENTO */}
       <StepCard 
         number={2} 
         title="Conferência de Recebimento" 
@@ -80,52 +80,59 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole
         description="O parceiro valida a documentação e a integridade física do material."
       >
         <div className="space-y-6">
-           {currentStep === 2 && isClient ? (
-             <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-500">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">A) Conferência Documental</label>
-                        <select 
-                           className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-bold"
-                           value={metadata?.documentalStatus || ''}
-                           onChange={(e) => handleClientConferences(e.target.value as QualityStatus, metadata?.physicalStatus || QualityStatus.PENDING)}
-                        >
-                            <option value="">Selecionar...</option>
-                            <option value={QualityStatus.APPROVED}>Conforme</option>
-                            <option value={QualityStatus.REJECTED}>Divergente</option>
-                        </select>
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">B) Conferência Física</label>
-                        <select 
-                           className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-bold"
-                           value={metadata?.physicalStatus || ''}
-                           onChange={(e) => handleClientConferences(metadata?.documentalStatus || QualityStatus.PENDING, e.target.value as QualityStatus)}
-                        >
-                            <option value="">Selecionar...</option>
-                            <option value={QualityStatus.APPROVED}>Conforme</option>
-                            <option value={QualityStatus.REJECTED}>Divergente</option>
-                        </select>
-                    </div>
-                </div>
+           {currentStep === 2 ? (
+             isClient ? (
+               <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-500">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">A) Conferência Documental</label>
+                          <select 
+                            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                            value={metadata?.documentalStatus || ''}
+                            onChange={(e) => onUpdate({ documentalStatus: e.target.value as QualityStatus })}
+                          >
+                              <option value="">Selecionar...</option>
+                              <option value={QualityStatus.APPROVED}>Conforme</option>
+                              <option value={QualityStatus.REJECTED}>Divergente</option>
+                          </select>
+                      </div>
+                      <div className="space-y-2">
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">B) Conferência Física</label>
+                          <select 
+                            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                            value={metadata?.physicalStatus || ''}
+                            onChange={(e) => onUpdate({ physicalStatus: e.target.value as QualityStatus })}
+                          >
+                              <option value="">Selecionar...</option>
+                              <option value={QualityStatus.APPROVED}>Conforme</option>
+                              <option value={QualityStatus.REJECTED}>Divergente</option>
+                          </select>
+                      </div>
+                  </div>
 
-                <div className="space-y-2">
-                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Observações do Recebimento</label>
-                    <textarea 
-                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium outline-none focus:bg-white"
-                        placeholder="Caso haja divergência, descreva aqui..."
-                        value={localObservations}
-                        onChange={(e) => setLocalObservations(e.target.value)}
-                    />
-                </div>
+                  <div className="space-y-2">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Observações do Recebimento</label>
+                      <textarea 
+                          className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium outline-none focus:bg-white"
+                          placeholder="Caso haja divergência, descreva aqui..."
+                          value={localObservations}
+                          onChange={(e) => setLocalObservations(e.target.value)}
+                      />
+                  </div>
 
-                <button 
-                   onClick={() => handleClientConferences(metadata?.documentalStatus || QualityStatus.APPROVED, metadata?.physicalStatus || QualityStatus.APPROVED)}
-                   className="w-full py-4 bg-[#b23c0e] text-white rounded-2xl font-black text-[10px] uppercase tracking-[3px] shadow-xl shadow-orange-900/20"
-                >
-                   Finalizar Conferência
-                </button>
-             </div>
+                  <button 
+                    onClick={() => handleClientConferences(metadata?.documentalStatus || QualityStatus.APPROVED, metadata?.physicalStatus || QualityStatus.APPROVED)}
+                    className="w-full py-4 bg-[#b23c0e] text-white rounded-2xl font-black text-[10px] uppercase tracking-[3px] shadow-xl shadow-orange-900/20"
+                  >
+                    Finalizar Conferência
+                  </button>
+               </div>
+             ) : (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-3 text-slate-500">
+                    <Clock size={16} className="text-orange-500" />
+                    <p className="text-[10px] font-black uppercase tracking-widest">Aguardando conferência do cliente</p>
+                </div>
+             )
            ) : (
              <div className="space-y-3">
                 <StatusRow label="Documentação" status={metadata?.documentalStatus} />
@@ -140,7 +147,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole
         </div>
       </StepCard>
 
-      {/* ETAPA 4: MEDIAÇÃO TÉCNICA VITAL */}
+      {/* ETAPA 3: MEDIAÇÃO TÉCNICA VITAL */}
       <StepCard 
         number={3} 
         title="Mediação Técnica Vital" 
@@ -174,34 +181,47 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole
         ) : null}
       </StepCard>
 
-      {/* ETAPA 5: VEREDITO FINAL PARCEIRO */}
+      {/* ETAPA 4: VEREDITO DO PARCEIRO */}
       <StepCard 
         number={4} 
         title="Veredito do Parceiro" 
         status={currentStep === 5 ? 'active' : currentStep > 5 ? 'done' : 'locked'}
         description="Decisão final do cliente após análise da mediação técnica."
       >
-        {currentStep === 5 && isClient ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in zoom-in-95 duration-500">
-             <button 
-                onClick={() => onUpdate({ currentStep: 7, status: QualityStatus.APPROVED, finalPartnerVerdict: QualityStatus.APPROVED, finalVerdictAt: new Date().toISOString() })} 
-                className="py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[2px] shadow-lg hover:bg-emerald-700 transition-all"
-             >
-                Aceitar Mediação
-             </button>
-             <button 
-                onClick={() => onUpdate({ currentStep: 6, status: QualityStatus.REJECTED, finalPartnerVerdict: QualityStatus.REJECTED, finalVerdictAt: new Date().toISOString() })} 
-                className="py-4 bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[2px] shadow-lg hover:bg-red-700 transition-all"
-             >
-                Manter Rejeição
-             </button>
-          </div>
+        {currentStep === 5 ? (
+          isClient ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in zoom-in-95 duration-500">
+               <button 
+                  onClick={() => onUpdate({ currentStep: 7, status: QualityStatus.APPROVED, finalPartnerVerdict: QualityStatus.APPROVED, finalVerdictAt: new Date().toISOString(), lastClientInteractionBy: userName })} 
+                  className="py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[2px] shadow-lg hover:bg-emerald-700 transition-all"
+               >
+                  Aceitar Mediação
+               </button>
+               <button 
+                  onClick={() => onUpdate({ currentStep: 6, status: QualityStatus.REJECTED, finalPartnerVerdict: QualityStatus.REJECTED, finalVerdictAt: new Date().toISOString(), lastClientInteractionBy: userName })} 
+                  className="py-4 bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[2px] shadow-lg hover:bg-red-700 transition-all"
+               >
+                  Manter Rejeição
+               </button>
+            </div>
+          ) : (
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-3 text-slate-500">
+                <Clock size={16} className="text-orange-500" />
+                <p className="text-[10px] font-black uppercase tracking-widest">Aguardando veredito final do parceiro</p>
+            </div>
+          )
         ) : metadata?.finalVerdictAt ? (
-           <StepBadge user={userName} date={metadata.finalVerdictAt} label={`Veredito: ${metadata.finalPartnerVerdict}`} />
+           <StepBadge 
+              user={metadata.lastClientInteractionBy || 'Parceiro'} 
+              date={metadata.finalVerdictAt} 
+              label="Veredito Final" 
+              notes={metadata.finalPartnerVerdict === QualityStatus.APPROVED ? "Mediação aceita pelo parceiro." : "O parceiro manteve a divergência técnica."}
+              isPositive={metadata.finalPartnerVerdict === QualityStatus.APPROVED}
+            />
         ) : null}
       </StepCard>
 
-      {/* ETAPA 6: CONTATO DE EMERGÊNCIA (APARECE SE REJEITADO NO PASSO 5) */}
+      {/* ETAPA 5: CONTATO DE EMERGÊNCIA (APARECE SE REJEITADO NO PASSO 5) */}
       {currentStep === 6 && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
             <div className="bg-red-50 border-2 border-red-100 rounded-[2.5rem] p-8 space-y-6 relative overflow-hidden">
@@ -232,7 +252,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ metadata, userRole
       )}
 
       {/* STATUS FINAL: PROTOCOLO ENCERRADO */}
-      {(currentStep === 7 || (currentStep === 5 && metadata?.status === 'APPROVED')) && (
+      {currentStep === 7 && (
         <div className="animate-in slide-in-from-bottom-4 duration-1000">
            <div className="p-8 bg-emerald-50 border-2 border-emerald-100 rounded-[2.5rem] flex items-center justify-between">
               <div className="flex items-center gap-6">
@@ -284,20 +304,20 @@ const StepCard = ({ number, title, status, description, children }: any) => {
   );
 };
 
-const StepBadge = ({ user, date, label, notes }: any) => (
-  <div className="bg-slate-50 border border-slate-100 rounded-3xl p-5 flex flex-col gap-3">
+const StepBadge = ({ user, date, label, notes, isPositive }: any) => (
+  <div className={`border rounded-3xl p-5 flex flex-col gap-3 ${isPositive === false ? 'bg-red-50 border-red-100' : isPositive === true ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-           <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-[10px] font-black text-slate-700 shadow-sm">{user?.charAt(0) || 'V'}</div>
+           <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-[10px] font-black text-slate-700 shadow-sm">{user?.charAt(0) || 'P'}</div>
            <div>
-              <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{user || 'Sistema Vital'}</p>
+              <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{user || 'Parceiro'}</p>
               <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
            </div>
         </div>
         <span className="text-[9px] font-mono text-slate-400">{date ? new Date(date).toLocaleDateString() : '--'}</span>
      </div>
      {notes && (
-       <p className="text-xs text-slate-600 italic font-medium leading-relaxed bg-white/50 p-4 rounded-2xl border border-slate-100">"{notes}"</p>
+       <p className={`text-xs italic font-medium leading-relaxed p-4 rounded-2xl border ${isPositive === false ? 'bg-white/80 text-red-700 border-red-100' : isPositive === true ? 'bg-white/80 text-emerald-700 border-emerald-100' : 'bg-white/50 text-slate-600 border-slate-100'}`}>"{notes}"</p>
      )}
   </div>
 );
