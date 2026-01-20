@@ -104,6 +104,7 @@ export interface IQualityService {
   getPortfolioFileExplorer: (analystId: string, folderId: string | null) => Promise<PaginatedResponse<FileNode>>;
   getManagedClients: (analystId: string, filters: { search?: string; status?: string }, page?: number) => Promise<PaginatedResponse<ClientOrganization>>;
   submitVeredict: (user: User, file: FileNode, status: QualityStatus, reason?: string) => Promise<void>;
+  saveInspectionSnapshot: (fileId: string, user: User, metadata: SteelBatchMetadata) => Promise<void>;
 }
 
 /**

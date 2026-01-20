@@ -1,7 +1,7 @@
 
 import { IQualityService, PaginatedResponse } from './interfaces.ts';
 import { supabase } from '../supabaseClient.ts';
-import { QualityStatus, FileNode, ClientOrganization, AuditLog, User, FileType } from '../../types/index.ts';
+import { QualityStatus, FileNode, ClientOrganization, AuditLog, User, FileType, SteelBatchMetadata } from '../../types/index.ts';
 import { logAction } from './loggingService.ts';
 
 const toDomainFile = (row: any): FileNode => ({
@@ -21,7 +21,6 @@ const toDomainFile = (row: any): FileNode => ({
 export const SupabaseQualityService: IQualityService = {
   getManagedPortfolio: async (analystId) => {
     try {
-      // FIX: Especificamos !organizations_quality_analyst_id_fkey
       const { data, error } = await supabase
         .from('organizations')
         .select('*, profiles!organizations_quality_analyst_id_fkey(full_name)')
@@ -95,7 +94,6 @@ export const SupabaseQualityService: IQualityService = {
   },
 
   getManagedClients: async (analystId, filters, page = 1) => {
-    // FIX: Especificamos !organizations_quality_analyst_id_fkey
     let query = supabase
       .from('organizations')
       .select('*, profiles!organizations_quality_analyst_id_fkey(full_name)', { count: 'exact' });
@@ -130,9 +128,44 @@ export const SupabaseQualityService: IQualityService = {
 
   submitVeredict: async (user, file, status, reason) => {
     const isNewRejection = status === QualityStatus.REJECTED;
-    const newMetadata = { ...file.metadata, status, rejectionReason: reason, lastInteractionAt: new Date().toISOString(), lastInteractionBy: user.name, currentStep: status === QualityStatus.APPROVED ? 5 : file.metadata?.currentStep };
+    const newMetadata = { ...file.metadata, status, rejectionReason: reason, lastInteractionAt: new Date().toISOString(), lastInteractionBy: user.name, currentStep: status === QualityStatus.APPROVED ? 7 : file.metadata?.currentStep };
     const { error } = await supabase.from('files').update({ metadata: newMetadata, updated_at: new Date().toISOString() }).eq('id', file.id);
     if (error) throw error;
     await logAction(user, isNewRejection ? 'QUALITY_VEREDICT_REJECTED' : 'QUALITY_VEREDICT_APPROVED', file.name, 'DATA', isNewRejection ? 'WARNING' : 'INFO');
+  },
+
+  saveInspectionSnapshot: async (fileId, user, metadata) => {
+    // Busca informações do arquivo para o snapshot
+    const { data: file } = await supabase.from('files').select('storage_path, version_number').eq('id', fileId).single();
+    
+    const { error } = await supabase.from('file_reviews').insert({
+        file_id: fileId,
+        author_id: user.id,
+        author_name_snapshot: user.name,
+        author_email_snapshot: user.email,
+        status: metadata.status,
+        version_number: file?.version_number || 1,
+        file_snapshot_url: file?.storage_path || 'unknown',
+        annotations: {
+            documental: {
+                status: metadata.documentalStatus,
+                flags: metadata.documentalFlags,
+                notes: metadata.documentalNotes
+            },
+            physical: {
+                status: metadata.physicalStatus,
+                flags: metadata.physicalFlags,
+                notes: metadata.physicalNotes,
+                photos_count: metadata.physicalPhotos?.length || 0
+            }
+        },
+        rejection_description: metadata.rejectionReason || metadata.documentalNotes || metadata.physicalNotes,
+        created_at: new Date().toISOString()
+    });
+
+    if (error) {
+        console.error("Erro ao salvar snapshot de auditoria:", error);
+        throw error;
+    }
   }
 };

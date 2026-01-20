@@ -16,36 +16,31 @@ export interface MechanicalProperties {
   elongation: number;
 }
 
-export interface AuditStepRecord {
-  step: number;
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
-  timestamp?: ISO8601Date;
-  performedBy?: string;
-  notes?: string;
-}
-
 export interface SteelBatchMetadata {
   batchNumber: string;
   grade: string;
   invoiceNumber: string;
   
-  // Custom Flags (Editáveis e persistentes)
   customFlags?: string[];
   
   // Controle de Fluxo
   currentStep: number;
   
-  // Etapa 1: Liberação Técnica Vital (QUALITY/ADMIN)
+  // Etapa 1: Liberação Técnica Vital
   releasedAt?: ISO8601Date;
   releasedBy?: string;
 
-  // Etapa 2: Conferência Documental (CLIENT)
+  // Etapa 2: Conferência Documental
   documentalStatus?: QualityStatus;
   documentalNotes?: string;
+  documentalFlags?: string[];
+  documentalDrawings?: string; // Base64 do canvas de auditoria
 
-  // Etapa 3: Conferência Física (CLIENT)
+  // Etapa 3: Conferência Física
   physicalStatus?: QualityStatus;
   physicalNotes?: string;
+  physicalFlags?: string[];
+  physicalPhotos?: string[]; // URLs das fotos de evidência
 
   // Metadados de interação do cliente
   clientObservations?: string;
@@ -53,12 +48,12 @@ export interface SteelBatchMetadata {
   lastClientInteractionAt?: string;
   lastClientInteractionBy?: string;
 
-  // Etapa 4: Mediação Técnica Vital (QUALITY/ADMIN)
+  // Etapa 4: Mediação Técnica Vital
   remediationReply?: string;
   remediatedAt?: ISO8601Date;
   remediatedBy?: string;
 
-  // Etapa 5: Veredito Final do Parceiro (CLIENT)
+  // Etapa 5: Veredito Final do Parceiro
   finalPartnerVerdict?: QualityStatus;
   finalVerdictAt?: ISO8601Date;
 

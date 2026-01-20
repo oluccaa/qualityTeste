@@ -12,18 +12,15 @@ interface State {
 
 /**
  * Boundary de Erros do Sistema
- * Refatorado para garantir a correta detecção de herança da classe base Component.
+ * Gerencia falhas catastróficas na árvore de componentes para evitar crash total da aplicação.
  */
-// Fix: Import Component directly from react to ensure proper property resolution for state, props and setState
+// Fix: Explicitly extend Component with type parameters to ensure inherited members like state, props, and setState are correctly recognized by TypeScript.
 export class ErrorBoundary extends Component<Props, State> {
   
+  // Fix: Initialize state as a class property instead of in the constructor to improve TypeScript's ability to resolve member types and avoid visibility errors.
   public state: State = {
     hasError: false
   };
-
-  constructor(props: Props) {
-    super(props);
-  }
 
   // Mandatory static method for error boundaries to update state
   public static getDerivedStateFromError(error: Error): State {
@@ -37,14 +34,17 @@ export class ErrorBoundary extends Component<Props, State> {
 
   // Handler to reset error state and reload the application
   private handleReset = () => {
-    // Fix: Accessing setState through Component inheritance correctly
+    // Fix: 'setState' is inherited from Component and now correctly resolved.
     this.setState({ hasError: false, error: undefined });
     window.location.reload();
   };
 
   public render(): ReactNode {
-    // Fix: Accessing state and props through Component inheritance correctly
-    if (!this.state.hasError) return this.props.children;
+    // Fix: Correctly access 'state' and 'props' inherited from Component.
+    const { hasError } = this.state;
+    const { children } = this.props;
+
+    if (!hasError) return children;
 
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
