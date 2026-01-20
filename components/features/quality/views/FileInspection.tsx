@@ -167,8 +167,7 @@ export const FileInspection: React.FC = () => {
                 userEmail={user?.email || ''}
                 fileId={inspectorFile.id}
                 onUpdate={async (updates) => {
-                    const targetStatus = updates.status || inspectorFile.metadata?.status as QualityStatus;
-                    await handleInspectAction(targetStatus, updates.rejectionReason);
+                    await handleInspectAction(updates);
                 }}
               />
             </div>

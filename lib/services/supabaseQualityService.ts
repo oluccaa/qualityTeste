@@ -92,7 +92,7 @@ export const SupabaseQualityService: IQualityService = {
       target: l.target || 'N/A', 
       severity: l.severity as any, 
       status: 'SUCCESS', 
-      ip: l.ip, // IP vindo direto da coluna do banco
+      ip: l.ip,
       location: l.metadata?.location || 'Brasil', 
       userAgent: l.user_agent || '', 
       metadata: l.metadata || {}, 
@@ -156,12 +156,34 @@ export const SupabaseQualityService: IQualityService = {
     };
   },
 
-  submitVeredict: async (user, file, status, reason) => {
-    const isNewRejection = status === QualityStatus.REJECTED;
-    const newMetadata = { ...file.metadata, status, rejectionReason: reason, lastInteractionAt: new Date().toISOString(), lastInteractionBy: user.name, currentStep: status === QualityStatus.APPROVED ? 7 : file.metadata?.currentStep };
-    const { error } = await supabase.from('files').update({ metadata: newMetadata, updated_at: new Date().toISOString() }).eq('id', file.id);
+  submitVeredict: async (user, file, updates) => {
+    const { data: currentFileData } = await supabase.from('files').select('metadata').eq('id', file.id).single();
+    
+    const newMetadata = { 
+        ...(currentFileData?.metadata || {}), 
+        ...updates,
+        lastInteractionAt: new Date().toISOString(),
+        lastInteractionBy: user.name
+    };
+
+    const { error } = await supabase
+        .from('files')
+        .update({ 
+            metadata: newMetadata, 
+            updated_at: new Date().toISOString() 
+        })
+        .eq('id', file.id);
+
     if (error) throw error;
-    await logAction(user, isNewRejection ? 'QUALITY_VEREDICT_REJECTED' : 'QUALITY_VEREDICT_APPROVED', file.name, 'DATA', isNewRejection ? 'WARNING' : 'INFO');
+
+    const isRejection = updates.status === QualityStatus.REJECTED;
+    await logAction(
+        user, 
+        isRejection ? 'QUALITY_VEREDICT_REJECTED' : 'QUALITY_VEREDICT_UPDATED', 
+        file.name, 
+        'DATA', 
+        isRejection ? 'WARNING' : 'INFO'
+    );
   },
 
   saveInspectionSnapshot: async (fileId, user, metadata) => {

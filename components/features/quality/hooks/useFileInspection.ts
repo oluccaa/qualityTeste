@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../context/authContext.tsx';
 import { useToast } from '../../../../context/notificationContext.tsx';
-import { FileNode, QualityStatus, FileType } from '../../../../types/index.ts';
+import { FileNode, QualityStatus, FileType, SteelBatchMetadata } from '../../../../types/index.ts';
 import { qualityService, fileService } from '../../../../lib/services/index.ts';
 import { supabase } from '../../../../lib/supabaseClient.ts';
 
@@ -50,14 +50,18 @@ export const useFileInspection = () => {
     fetchDetails();
   }, [fetchDetails]);
 
-  const handleInspectAction = async (status: QualityStatus, reason?: string) => {
+  const handleInspectAction = async (updates: Partial<SteelBatchMetadata>) => {
     if (!inspectorFile || !user) return;
     setIsProcessing(true);
     
     try {
-      await qualityService.submitVeredict(user, inspectorFile, status, reason);
-      showToast(`Veredito '${status}' registrado.`, 'success');
-      setInspectorFile(prev => prev ? ({ ...prev, metadata: { ...prev.metadata!, status, rejectionReason: reason } }) : null);
+      await qualityService.submitVeredict(user, inspectorFile, updates);
+      showToast(`Protocolo industrial atualizado.`, 'success');
+      
+      setInspectorFile(prev => prev ? ({ 
+        ...prev, 
+        metadata: { ...prev.metadata!, ...updates } 
+      }) : null);
     } catch (err) {
       showToast("Falha ao gravar veredito no ledger.", 'error');
     } finally {
@@ -80,7 +84,6 @@ export const useFileInspection = () => {
 
         if (folderError) throw folderError;
 
-        // FIX: Sanitização robusta para evitar "Invalid key" no Storage
         const sanitizedName = file.name
             .normalize("NFD")
             .replace(/[\u0300-\u036f]/g, "")
@@ -120,7 +123,6 @@ export const useFileInspection = () => {
     handleUploadEvidence,
     previewFile,
     setPreviewFile,
-    // Fix: Added missing user property to the return object to resolve the error in FileInspection.tsx
     user,
     handleDownload: async (file: FileNode) => {
       try {

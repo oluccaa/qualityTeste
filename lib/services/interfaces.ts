@@ -104,7 +104,7 @@ export interface IQualityService {
   getTechnicalAuditLogs: (analystId: string, filters?: { search?: string; severity?: string }) => Promise<AuditLog[]>;
   getPortfolioFileExplorer: (analystId: string, folderId: string | null) => Promise<PaginatedResponse<FileNode>>;
   getManagedClients: (analystId: string, filters: { search?: string; status?: string }, page?: number) => Promise<PaginatedResponse<ClientOrganization>>;
-  submitVeredict: (user: User, file: FileNode, status: QualityStatus, reason?: string) => Promise<void>;
+  submitVeredict: (user: User, file: FileNode, updates: Partial<SteelBatchMetadata>) => Promise<void>;
   saveInspectionSnapshot: (fileId: string, user: User, metadata: SteelBatchMetadata) => Promise<void>;
 }
 
@@ -134,7 +134,7 @@ export interface IAdminService {
   flagClientForDeletion: (user: User, clientId: string) => Promise<void>;
   scheduleMaintenance: (user: User, event: Partial<MaintenanceEvent>) => Promise<MaintenanceEvent>;
   updateGatewayMode: (user: User, mode: SystemStatus['mode']) => Promise<void>;
-  getGlobalAuditLogs: () => Promise<AuditLog[]>;
+  getGlobalAuditLogs: (user: User) => Promise<AuditLog[]>;
   manageUserAccess: (admin: User, targetUser: Partial<User>) => Promise<void>;
   getAllClients: () => Promise<ClientOrganization[]>;
   generateSystemBackup: (user: User) => Promise<{ blob: Blob, fileName: string }>;
