@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { ErrorInfo, ReactNode } from 'react';
 import { AlertOctagon, RefreshCw } from 'lucide-react';
 
 interface Props {
@@ -14,10 +14,9 @@ interface State {
  * Boundary de Erros do Sistema
  * Gerencia falhas catastróficas na árvore de componentes para evitar crash total da aplicação.
  */
-// Fix: Explicitly extend Component with type parameters to ensure inherited members like state, props, and setState are correctly recognized by TypeScript.
-export class ErrorBoundary extends Component<Props, State> {
-  
-  // Fix: Initialize state as a class property instead of in the constructor to improve TypeScript's ability to resolve member types and avoid visibility errors.
+// Fix: Explicitly use React.Component to ensure that standard methods and properties are recognized by TypeScript.
+export class ErrorBoundary extends React.Component<Props, State> {
+  // Fix: Standard property initialization for the state object.
   public state: State = {
     hasError: false
   };
@@ -34,13 +33,13 @@ export class ErrorBoundary extends Component<Props, State> {
 
   // Handler to reset error state and reload the application
   private handleReset = () => {
-    // Fix: 'setState' is inherited from Component and now correctly resolved.
+    // Fix: Standard access to setState from the React.Component base class.
     this.setState({ hasError: false, error: undefined });
     window.location.reload();
   };
 
   public render(): ReactNode {
-    // Fix: Correctly access 'state' and 'props' inherited from Component.
+    // Fix: Correctly access the state and props inherited from React.Component.
     const { hasError } = this.state;
     const { children } = this.props;
 

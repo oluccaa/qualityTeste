@@ -1,17 +1,17 @@
 
 import React, { useState, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../context/authContext.tsx';
 import { usePartnerCertificates } from '../hooks/usePartnerCertificates.ts';
 import { FileExplorer } from '../../files/FileExplorer.tsx';
 import { ExplorerToolbar } from '../../files/components/ExplorerToolbar.tsx';
-import { FilePreviewModal } from '../../files/FilePreviewModal.tsx';
 import { FileNode, UserRole, FileType } from '../../../../types/index.ts';
 import { fileService, partnerService } from '../../../../lib/services/index.ts';
 import { FileCheck, Loader2, Layers } from 'lucide-react';
 
 export const PartnerLibraryView: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
   const currentFolderId = searchParams.get('folderId');
@@ -22,8 +22,6 @@ export const PartnerLibraryView: React.FC = () => {
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
   
   const { files, isLoading, breadcrumbs, refresh } = usePartnerCertificates(currentFolderId, searchTerm);
-  
-  const [previewFile, setPreviewFile] = useState<FileNode | null>(null);
 
   const handleNavigate = useCallback((id: string | null) => {
     setSelectedFileIds([]);
@@ -39,7 +37,8 @@ export const PartnerLibraryView: React.FC = () => {
         handleNavigate(file.id);
     } else {
         if (user) await partnerService.logFileView(user, file);
-        setPreviewFile(file);
+        // NOVA LÓGICA: Navega para a página de preview
+        navigate(`/preview/${file.id}`);
     }
   };
 
@@ -54,7 +53,7 @@ export const PartnerLibraryView: React.FC = () => {
 
   if (isLoading && files.length === 0) {
       return (
-          <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
+          <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-[3rem] border-2 border-dashed border-slate-100 font-sans">
               <Loader2 className="animate-spin text-blue-600 mb-6" size={48} />
               <p className="text-[11px] font-black uppercase tracking-[6px] text-slate-400">Sincronizando Vault Vital...</p>
           </div>
@@ -62,8 +61,7 @@ export const PartnerLibraryView: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full gap-4 animate-in fade-in duration-700 overflow-hidden">
-      {/* Mini Hero para economizar espaço vertical */}
+    <div className="flex flex-col h-full gap-4 animate-in fade-in duration-700 overflow-hidden font-sans">
       <section className="bg-[#081437] rounded-[2rem] px-6 py-4 text-white relative overflow-hidden shadow-xl border border-white/5 shrink-0">
         <div className="relative z-10 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -75,27 +73,18 @@ export const PartnerLibraryView: React.FC = () => {
               <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest">Acesso B2B Seguro</p>
             </div>
           </div>
-
           <div className="hidden sm:flex items-center gap-3 bg-white/5 px-4 py-1.5 rounded-xl border border-white/10">
              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Total: <span className="text-white ml-1">{files.length}</span></p>
              <div className="w-px h-3 bg-white/10" />
              <div className="flex items-center gap-1.5 text-emerald-400">
                 <FileCheck size={12} />
-                <span className="text-[9px] font-black uppercase tracking-widest">OK</span>
+                <span className="text-[9px] font-black uppercase tracking-widest">Sincronizado</span>
              </div>
           </div>
         </div>
       </section>
 
-      {/* Estação de Comando preenchendo toda a altura restante */}
       <div className="flex-1 min-h-0 flex flex-col bg-white rounded-[2rem] border border-slate-200 shadow-2xl overflow-hidden">
-        <FilePreviewModal 
-          initialFile={previewFile}
-          isOpen={!!previewFile} 
-          onClose={() => { setPreviewFile(null); refresh(); }} 
-          onDownloadFile={handleDownload} 
-        />
-
         <ExplorerToolbar
             breadcrumbs={breadcrumbs}
             onNavigate={handleNavigate}

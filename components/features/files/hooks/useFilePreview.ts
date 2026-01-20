@@ -1,13 +1,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { FileNode, SteelBatchMetadata, User } from '../../../../types/index.ts';
+import { FileNode, SteelBatchMetadata, User, FileType } from '../../../../types/index.ts';
 import { fileService } from '../../../../lib/services/index.ts';
 import { useToast } from '../../../../context/notificationContext.tsx';
 
-/**
- * useFilePreview (Business Logic Hook)
- * Separa a lógica de dados da apresentação visual do modal.
- */
 export const useFilePreview = (user: User | null, initialFile: FileNode | null) => {
   const { showToast } = useToast();
   const [currentFile, setCurrentFile] = useState<FileNode | null>(initialFile);
@@ -16,15 +12,23 @@ export const useFilePreview = (user: User | null, initialFile: FileNode | null) 
   const [pageNum, setPageNum] = useState(1);
   const [zoom, setZoom] = useState(1.0);
 
+  const loadFileUrl = useCallback(async (file: FileNode) => {
+    if (!user) return;
+    try {
+        const signed = await fileService.getFileSignedUrl(user, file.id);
+        setUrl(signed);
+    } catch (e) {
+        showToast("Falha ao autenticar acesso ao bucket.", "error");
+    }
+  }, [user, showToast]);
+
   useEffect(() => {
     if (initialFile && user) {
       setCurrentFile(initialFile);
       setPageNum(1);
-      fileService.getFileSignedUrl(user, initialFile.id)
-        .then(setUrl)
-        .catch(() => showToast("Falha ao autenticar acesso ao bucket.", "error"));
+      loadFileUrl(initialFile);
     }
-  }, [initialFile, user, showToast]);
+  }, [initialFile, user, loadFileUrl]);
 
   const handleUpdateMetadata = useCallback(async (updatedMetadata: Partial<SteelBatchMetadata>) => {
     if (!currentFile) return;
@@ -32,13 +36,10 @@ export const useFilePreview = (user: User | null, initialFile: FileNode | null) 
     setIsSyncing(true);
     try {
         await fileService.updateFileMetadata(currentFile.id, updatedMetadata);
-        
-        // Atualiza estado local para reflexo imediato na UI
         setCurrentFile(prev => prev ? ({
             ...prev,
             metadata: { ...(prev.metadata || {}), ...updatedMetadata } as SteelBatchMetadata
         }) : null);
-        
         showToast("Ledger Vital sincronizado com sucesso.", "success");
     } catch (e: any) {
         showToast(`Erro na persistência: ${e.message}`, "error");
@@ -46,6 +47,42 @@ export const useFilePreview = (user: User | null, initialFile: FileNode | null) 
         setIsSyncing(false);
     }
   }, [currentFile, showToast]);
+
+  const handleReplacementUpload = useCallback(async (newFileBlob: File) => {
+    if (!currentFile || !user || !currentFile.ownerId) return;
+    
+    setIsSyncing(true);
+    try {
+        // 1. Sobe o novo arquivo físico como uma nova versão
+        const nextVersion = (currentFile.versionNumber || 1) + 1;
+        const newFileName = `v${nextVersion}_${currentFile.name.replace(/^v\d+_/, '')}`;
+        
+        const uploaded = await fileService.uploadFile(user, {
+            name: newFileName,
+            fileBlob: newFileBlob,
+            parentId: currentFile.parentId,
+            type: FileType.PDF,
+            size: `${(newFileBlob.size / 1024 / 1024).toFixed(2)} MB`,
+            mimeType: 'application/pdf'
+        }, currentFile.ownerId);
+
+        // 2. Atualiza metadados do original com link para o substituto
+        await fileService.updateFileMetadata(currentFile.id, {
+            replacementFileId: uploaded.id,
+            status: 'SENT' as any // Reinicia o status ou marca como substituído
+        });
+
+        // 3. Muda a visualização para o novo arquivo
+        setCurrentFile(uploaded);
+        await loadFileUrl(uploaded);
+        
+        showToast(`Versão ${nextVersion} implementada com sucesso.`, "success");
+    } catch (e: any) {
+        showToast(`Falha no versionamento: ${e.message}`, "error");
+    } finally {
+        setIsSyncing(false);
+    }
+  }, [currentFile, user, showToast, loadFileUrl]);
 
   const handleDownload = useCallback(async () => {
     if (!currentFile || !user) return;
@@ -66,6 +103,7 @@ export const useFilePreview = (user: User | null, initialFile: FileNode | null) 
     zoom,
     setZoom,
     handleUpdateMetadata,
-    handleDownload
+    handleDownload,
+    handleReplacementUpload
   };
 };

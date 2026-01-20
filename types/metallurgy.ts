@@ -16,46 +16,71 @@ export interface MechanicalProperties {
   elongation: number;
 }
 
+export interface AuditSignature {
+  userId: string;
+  userName: string;
+  userRole: string;
+  timestamp: ISO8601Date;
+  action: string;
+  ip?: string;
+}
+
+export interface FileVersion {
+  version: number;
+  storagePath: string;
+  createdAt: ISO8601Date;
+  createdBy: string;
+  note?: string;
+}
+
 export interface SteelBatchMetadata {
   batchNumber: string;
   grade: string;
   invoiceNumber: string;
   
-  customFlags?: string[];
+  // Controle de Versão
+  currentVersion: number;
+  versionHistory: FileVersion[];
   
   // Controle de Fluxo
   currentStep: number;
   
-  // Etapa 1: Liberação Técnica Vital
-  releasedAt?: ISO8601Date;
-  releasedBy?: string;
+  // Assinaturas de Etapas (Tracing Completo)
+  signatures: {
+    step1_release?: AuditSignature;
+    step2_client_check?: AuditSignature;
+    step3_remediation?: AuditSignature;
+    step4_final_verdict?: AuditSignature;
+  };
 
-  // Etapa 2: Conferência Documental
+  // Etapa 2: Conferência Documental/Física
   documentalStatus?: QualityStatus;
   documentalNotes?: string;
+  // Fix: added documentalFlags to support audit snapshots
   documentalFlags?: string[];
-  documentalDrawings?: string; // Base64 do canvas de auditoria
-
-  // Etapa 3: Conferência Física
+  // Fix: added documentalDrawings to support annotations
+  documentalDrawings?: string;
+  
   physicalStatus?: QualityStatus;
   physicalNotes?: string;
+  // Fix: added physicalFlags to support audit snapshots
   physicalFlags?: string[];
-  physicalPhotos?: string[]; // URLs das fotos de evidência
-
-  // Metadados de interação do cliente
-  clientObservations?: string;
-  viewedAt?: ISO8601Date;
-  lastClientInteractionAt?: string;
-  lastClientInteractionBy?: string;
-
-  // Etapa 4: Mediação Técnica Vital
+  // Fix: added physicalPhotos to support evidence tracking
+  physicalPhotos?: string[];
+  
+  // Tratamento de Rejeição
+  remediationPlan?: string;
   remediationReply?: string;
-  remediatedAt?: ISO8601Date;
-  remediatedBy?: string;
+  replacementFileId?: string; // Link para o novo arquivo se houver substituição
 
-  // Etapa 5: Veredito Final do Parceiro
-  finalPartnerVerdict?: QualityStatus;
-  finalVerdictAt?: ISO8601Date;
+  // Interação e Rastreabilidade
+  // Fix: added interaction fields for workflow and feedback tracking
+  lastInteractionAt?: ISO8601Date;
+  lastInteractionBy?: string;
+  viewedAt?: ISO8601Date;
+  clientObservations?: string;
+  lastClientInteractionAt?: ISO8601Date;
+  lastClientInteractionBy?: string;
 
   // Global
   status: QualityStatus;

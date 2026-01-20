@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../context/authContext.tsx';
 import { useTranslation } from 'react-i18next';
 import { FileNode, FileType, UserRole } from '../../../../types/index.ts';
@@ -8,7 +8,6 @@ import { useFileCollection } from '../../files/hooks/useFileCollection.ts';
 import { useFileOperations } from '../../files/hooks/useFileOperations.ts';
 import { FileExplorer, FileExplorerHandle } from '../../files/FileExplorer.tsx';
 import { ExplorerToolbar } from '../../files/components/ExplorerToolbar.tsx';
-import { FilePreviewModal } from '../../files/FilePreviewModal.tsx';
 import { CreateFolderModal } from '../../files/modals/CreateFolderModal.tsx';
 import { RenameModal } from '../../files/modals/RenameModal.tsx';
 import { UploadFileModal } from '../../files/modals/UploadFileModal.tsx';
@@ -23,6 +22,7 @@ interface FileExplorerViewProps {
 
 export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -32,7 +32,6 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
   );
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
-  const [selectedFileForPreview, setSelectedFileForPreview] = useState<FileNode | null>(null);
   
   const [isReady, setIsReady] = useState(false);
   const [modals, setModals] = useState({
@@ -41,8 +40,6 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
   
   const [fileToRename, setFileToRename] = useState<FileNode | null>(null);
   const fileExplorerRef = useRef<FileExplorerHandle>(null);
-
-  // NOVIDADE: Estado para rastrear qual empresa é dona do contexto atual (especialmente útil no modo global)
   const [contextualOwnerId, setContextualOwnerId] = useState<string | null>(orgId === 'global' ? null : orgId);
 
   const handleViewChange = (mode: 'grid' | 'list') => {
@@ -50,7 +47,6 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
     localStorage.setItem('explorer_view_mode', mode);
   };
 
-  // Efeito para resolver a pasta inicial caso venha de um orgId específico
   useEffect(() => {
     const resolveInitialFolder = async () => {
       if (orgId && orgId !== 'global' && !currentFolderId) {
@@ -65,36 +61,23 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
     resolveInitialFolder();
   }, [orgId, currentFolderId, setSearchParams]);
 
-  // NOVIDADE: Efeito para descobrir o dono da pasta atual quando navegando pelo Cloud Global
   useEffect(() => {
     const resolveContextualOwner = async () => {
       if (orgId !== 'global') {
         setContextualOwnerId(orgId);
         return;
       }
-
       if (!currentFolderId) {
         setContextualOwnerId(null);
         return;
       }
-
-      // Busca o owner_id da pasta atual para saber em qual empresa estamos "dentro"
-      const { data } = await supabase
-        .from('files')
-        .select('owner_id')
-        .eq('id', currentFolderId)
-        .single();
-      
+      const { data } = await supabase.from('files').select('owner_id').eq('id', currentFolderId).single();
       setContextualOwnerId(data?.owner_id || null);
     };
-
     resolveContextualOwner();
   }, [orgId, currentFolderId]);
 
   const collection = useFileCollection({ currentFolderId, searchTerm, ownerId: orgId });
-  
-  // CORREÇÃO: Passamos o contextualOwnerId para as operações. 
-  // Isso resolve o erro de "Usuário Órfão" pois agora o hook sabe o ID da empresa alvo.
   const ops = useFileOperations(contextualOwnerId, () => collection.fetchFiles(true));
 
   const activeSelectedFile = collection.files.find(f => f.id === selectedFileIds[selectedFileIds.length - 1]) || null;
@@ -109,17 +92,20 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
     }, { replace: true });
   }, [setSearchParams, orgId]);
 
+  const handleFileClick = (file: FileNode) => {
+    if (file.type === FileType.FOLDER) {
+      handleNavigate(file.id);
+    } else {
+      // NOVA LÓGICA: Navega para a página de preview
+      navigate(`/preview/${file.id}`);
+    }
+  };
+
   if (!isReady) return <QualityLoadingState message="Sincronizando Vault..." />;
 
   return (
     <div className="flex flex-col h-full bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden animate-in fade-in duration-500">
       {ops.isProcessing && <ProcessingOverlay message="Atualizando Base de Dados..." />}
-      
-      <FilePreviewModal 
-        initialFile={selectedFileForPreview} 
-        isOpen={!!selectedFileForPreview} 
-        onClose={() => { setSelectedFileForPreview(null); collection.fetchFiles(true); }} 
-      />
       
       <UploadFileModal isOpen={modals.upload} onClose={() => setModals(m => ({...m, upload: false}))} onUpload={async (f, n) => { await ops.handleUpload(f, n, currentFolderId); setModals(m => ({...m, upload: false})); }} isUploading={ops.isProcessing} currentFolderId={currentFolderId} />
       <CreateFolderModal isOpen={modals.folder} onClose={() => setModals(m => ({...m, folder: false}))} onCreate={async (n) => { await ops.handleCreateFolder(n, currentFolderId); setModals(m => ({...m, folder: false})); }} isCreating={ops.isProcessing} />
@@ -154,7 +140,7 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
             selectedFileIds={selectedFileIds} 
             onToggleFileSelection={(id) => setSelectedFileIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])} 
             onNavigate={handleNavigate} 
-            onFileSelectForPreview={(f) => setSelectedFileForPreview(f)} 
+            onFileSelectForPreview={handleFileClick} 
             onDownloadFile={() => {}} 
             onRenameFile={(f) => { setFileToRename(f); setModals(m => ({...m, rename: true})); }} 
             onDeleteFile={(id) => { setSelectedFileIds([id]); setModals(m => ({...m, delete: true})); }} 

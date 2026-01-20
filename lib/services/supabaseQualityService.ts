@@ -149,13 +149,16 @@ export const SupabaseQualityService: IQualityService = {
         annotations: {
             documental: {
                 status: metadata.documentalStatus,
+                // Fix: documentalFlags added to SteelBatchMetadata to resolve property access error
                 flags: metadata.documentalFlags,
                 notes: metadata.documentalNotes
             },
             physical: {
                 status: metadata.physicalStatus,
+                // Fix: physicalFlags added to SteelBatchMetadata to resolve property access error
                 flags: metadata.physicalFlags,
                 notes: metadata.physicalNotes,
+                // Fix: physicalPhotos added to SteelBatchMetadata to resolve property access error
                 photos_count: metadata.physicalPhotos?.length || 0
             }
         },

@@ -1,11 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   X, Download, ShieldCheck, FileText, Loader2, 
-  Pencil, Highlighter, Square, Circle, Eraser, Move, Save, 
-  Hand, Type
+  Pencil, Highlighter, Square, Circle, Eraser, Save, 
+  Hand, History
 } from 'lucide-react';
-import { FileNode, UserRole } from '../../../types/index.ts';
+import { FileNode, UserRole, SteelBatchMetadata } from '../../../types/index.ts';
 import { useAuth } from '../../../context/authContext.tsx';
 import { AuditWorkflow } from '../quality/components/AuditWorkflow.tsx';
 import { PdfViewport } from './components/PdfViewport.tsx';
@@ -16,10 +16,12 @@ export const FilePreviewModal: React.FC<{
   initialFile: FileNode | null; 
   isOpen: boolean; 
   onClose: () => void; 
+  onDownloadFile?: (file: FileNode) => void;
 }> = ({ initialFile, isOpen, onClose }) => {
   const { user } = useAuth();
   const [activeTool, setActiveTool] = useState<DrawingTool>('hand');
   const [drawingData, setDrawingData] = useState<string | null>(null);
+  const replacementInputRef = useRef<HTMLInputElement>(null);
   
   const {
     currentFile,
@@ -30,7 +32,8 @@ export const FilePreviewModal: React.FC<{
     zoom,
     setZoom,
     handleUpdateMetadata,
-    handleDownload
+    handleDownload,
+    handleReplacementUpload
   } = useFilePreview(user, initialFile);
 
   const handleSaveAudited = async () => {
@@ -40,10 +43,18 @@ export const FilePreviewModal: React.FC<{
     });
   };
 
+  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && handleReplacementUpload) {
+      await handleReplacementUpload(file);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[300] bg-[#020617] flex animate-in fade-in duration-500 overflow-hidden font-sans">
+      <input type="file" ref={replacementInputRef} onChange={onFileChange} className="hidden" accept=".pdf" />
       
       {/* Visualização Técnica com Camada de Desenho (Esquerda) */}
       <div className="w-1/2 relative border-r border-white/5 flex flex-col bg-[#020617]">
@@ -52,13 +63,15 @@ export const FilePreviewModal: React.FC<{
              <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 text-blue-400 shadow-inner"><FileText size={22} /></div>
              <div>
                 <h2 className="text-white text-xs font-black uppercase tracking-[4px] leading-tight truncate max-w-xs">{currentFile?.name}</h2>
-                <p className="text-[9px] text-slate-500 font-mono mt-1 uppercase tracking-widest flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Protocolo Seguro Vital
-                </p>
+                <div className="flex items-center gap-3 mt-1">
+                   <p className="text-[9px] text-slate-500 font-mono uppercase tracking-widest flex items-center gap-2">
+                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Protocolo Seguro Vital
+                   </p>
+                   <span className="text-[8px] font-black bg-blue-600 text-white px-1.5 py-0.5 rounded">v{currentFile?.versionNumber || 1}</span>
+                </div>
              </div>
           </div>
           
-          {/* Toolbar Industrial */}
           <div className="flex items-center gap-1.5 bg-black/40 p-1.5 rounded-2xl border border-white/5">
             <ToolButton icon={Hand} active={activeTool === 'hand'} onClick={() => setActiveTool('hand')} label="Pan" />
             <div className="w-px h-6 bg-white/10 mx-1" />
@@ -115,7 +128,7 @@ export const FilePreviewModal: React.FC<{
            <button onClick={onClose} className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-red-600 transition-all shadow-sm hover:shadow-lg active:scale-95"><X size={24} /></button>
         </header>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-12 bg-white">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-10 bg-white">
             <div className="max-w-2xl mx-auto">
               <AuditWorkflow 
                 metadata={currentFile?.metadata} 
@@ -124,6 +137,7 @@ export const FilePreviewModal: React.FC<{
                 userEmail={user?.email || ''}
                 fileId={currentFile?.id || ''}
                 onUpdate={handleUpdateMetadata}
+                onUploadReplacement={() => replacementInputRef.current?.click()}
               />
             </div>
         </div>
@@ -133,17 +147,24 @@ export const FilePreviewModal: React.FC<{
               <ShieldCheck size={24} className="text-emerald-500" />
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[3px] text-slate-600">Vital Compliance SGQ</p>
-                <p className="text-[9px] font-bold uppercase text-slate-400">Rastreabilidade Forense Ativa</p>
+                <p className="text-[9px] font-bold uppercase text-slate-400">Rastreabilidade Digital Ativa</p>
               </div>
            </div>
            <button 
               onClick={handleDownload}
-              className="px-8 py-4 bg-[#081437] text-white rounded-2xl text-[10px] font-black uppercase tracking-[3px] hover:bg-[#b23c0e] transition-all flex items-center gap-3 active:scale-95 shadow-xl shadow-slate-900/10"
+              className="px-8 py-4 bg-[#081437] text-white rounded-2xl text-[10px] font-black uppercase tracking-[3px] hover:bg-[#b23c0e] transition-all flex items-center gap-3 active:scale-95 shadow-xl"
            >
               <Download size={16} className="text-blue-400" /> Exportar Laudo Original
            </button>
         </footer>
       </div>
+      
+      {isSyncing && (
+          <div className="fixed inset-0 z-[400] bg-[#081437]/60 backdrop-blur-md flex flex-col items-center justify-center text-white">
+              <Loader2 className="animate-spin text-blue-500 mb-4" size={48} />
+              <p className="text-[11px] font-black uppercase tracking-[6px]">Sincronizando Ledger Vital...</p>
+          </div>
+      )}
     </div>
   );
 };

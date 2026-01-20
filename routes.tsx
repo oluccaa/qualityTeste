@@ -20,12 +20,13 @@ const QualityAuditHistory = React.lazy(() => import('./pages/quality/QualityAudi
 const QualityUserManagement = React.lazy(() => import('./pages/quality/QualityUserManagement.tsx'));
 const QualityExplorer = React.lazy(() => import('./pages/quality/QualityExplorer.tsx'));
 const FileInspection = React.lazy(() => import('./components/features/quality/views/FileInspection.tsx').then(m => ({ default: m.FileInspection })));
+const FilePreviewPage = React.lazy(() => import('./pages/shared/FilePreviewPage.tsx'));
 const ClientPortal = React.lazy(() => import('./pages/client/ClientPortal.tsx'));
 const SettingsPage = React.lazy(() => import('./pages/shared/SettingsPage.tsx'));
 const NotFoundPage = React.lazy(() => import('./pages/shared/NotFoundPage.tsx'));
 
 const PageLoader = ({ message = "Carregando...", onRetry }: { message?: string; onRetry?: () => void }) => (
-  <div className="h-screen w-screen bg-[#081437] flex flex-col items-center justify-center text-white">
+  <div className="h-screen w-screen bg-[#081437] flex flex-col items-center justify-center text-white font-sans">
       <div className="relative mb-8">
         <Loader2 size={48} className="animate-spin text-blue-500" />
         <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full animate-pulse" />
@@ -41,24 +42,14 @@ const PageLoader = ({ message = "Carregando...", onRetry }: { message?: string; 
 
 const InitialAuthRedirect = () => {
     const { user, isLoading, error, isInitialSyncComplete, retryInitialSync } = useAuth();
-
-    // Se estiver carregando ou o sync inicial ainda não terminou, mostra o loader
     if (isLoading || !isInitialSyncComplete) return <PageLoader message="Sincronizando Protocolos" />;
-    
-    if (error) {
-      return <PageLoader message="Falha na Sincronização de Identidade" onRetry={retryInitialSync} />;
-    }
-    
+    if (error) return <PageLoader message="Falha na Sincronização" onRetry={retryInitialSync} />;
     if (user) {
         const role = normalizeRole(user.role);
-        
         if (role === UserRole.ADMIN) return <Navigate to="/admin/dashboard" replace />;
         if (role === UserRole.QUALITY) return <Navigate to="/quality/dashboard" replace />;
         if (role === UserRole.CLIENT) return <Navigate to="/client/portal" replace />;
-        
-        return <Navigate to="/404" replace />;
     }
-
     return <Navigate to="/login" replace />;
 };
 
@@ -73,6 +64,7 @@ export const AppRoutes: React.FC = () => {
         <Route element={<MaintenanceMiddleware />}> 
             <Route element={<AuthMiddleware />}>
                 <Route path="/settings" element={<SettingsPage />} /> 
+                <Route path="/preview/:fileId" element={<FilePreviewPage />} />
 
                 {/* ADMIN EXCLUSIVE */}
                 <Route element={<RoleMiddleware allowedRoles={[UserRole.ADMIN]} />}>
