@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Eye, Filter } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -10,14 +11,36 @@ interface AuditLogsTableProps {
     onInvestigate: (log: AuditLog) => void;
 }
 
-/**
- * Configuração visual de severidades (O)
- */
 const SEVERITY_CONFIG: Record<string, string> = {
   INFO: 'bg-blue-100 text-blue-700',
   WARNING: 'bg-orange-100 text-orange-700',
   ERROR: 'bg-red-100 text-red-700',
   CRITICAL: 'bg-red-200 text-red-800 font-black animate-pulse',
+};
+
+/**
+ * Mapeia as chaves de ação do sistema para descrições em português legíveis.
+ */
+const translateAction = (action: string): string => {
+  const mapping: Record<string, string> = {
+    'QUALITY_VEREDICT_APPROVED': 'Aprovação de Laudo Técnico',
+    'QUALITY_VEREDICT_REJECTED': 'Reprovação de Laudo Técnico',
+    'CLIENT_FLAGGED_DELETION': 'Sinalização para Exclusão',
+    'CLIENT_CREATE': 'Cadastro de Nova Empresa',
+    'CLIENT_UPDATE': 'Atualização de Dados Cadastrais',
+    'CLIENT_DELETE': 'Exclusão de Registro',
+    'USER_REGISTERED': 'Novo Usuário Credenciado',
+    'USER_FLAGGED_DELETION': 'Usuário Sinalizado para Remoção',
+    'SYS_STATUS_CHANGE': 'Alteração do Status do Sistema',
+    'SYSTEM_BACKUP_GENERATED': 'Geração de Backup Master',
+    'FILE_VIEW': 'Visualização de Documento',
+    'FILE_DOWNLOAD': 'Download de Documento',
+    'CLIENT_FILE_VIEW': 'Leitura de Certificado pelo Parceiro',
+    'REVIEW_SUBMITTED_APPROVED': 'Aceite de Certificado Confirmado',
+    'REVIEW_SUBMITTED_REJECTED': 'Contestação de Certificado Enviada'
+  };
+
+  return mapping[action] || action.replace(/_/g, ' ');
 };
 
 export const AuditLogsTable: React.FC<AuditLogsTableProps> = ({ 
@@ -54,8 +77,6 @@ export const AuditLogsTable: React.FC<AuditLogsTableProps> = ({
     );
 };
 
-/* --- Sub-componentes Especializados (SRP) --- */
-
 interface FilterBarProps {
     filter: string;
     onFilterChange: (value: string) => void;
@@ -91,7 +112,7 @@ const TableHeader = ({ t }: { t: any }) => (
           <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider">{t('admin.stats.headers.target')}</th>
           <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider">{t('admin.stats.headers.ip')}</th>
           <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider">{t('admin.stats.headers.severity')}</th>
-          <th className="px-6 py-4 text-right"></th>
+          <th className="px-6 py-4"></th>
       </tr>
   </thead>
 );
@@ -105,18 +126,17 @@ const AuditLogRow: React.FC<{ log: AuditLog, onInvestigate: () => void }> = ({ l
           <div className="font-medium">{log.userName}</div>
           <div className="text-xs text-slate-400">{log.userRole}</div>
       </td>
-      <td className="px-6 py-3 text-sm font-bold text-slate-700">
-          {log.action}
+      <td className="px-6 py-3 text-sm font-bold text-slate-800">
+          {translateAction(log.action)}
       </td>
       <td className="px-6 py-3 text-xs text-slate-500 font-mono">
           {log.target.substring(0, 30)}{log.target.length > 30 && '...'}
       </td>
-      {/* CORREÇÃO AQUI: Tratamento para IP nulo ou vazio */}
       <td className="px-6 py-3 text-xs text-slate-500 font-mono">
           {log.ip ? (
-            <span>{log.ip || <span className="text-slate-300 italic">N/A</span>}</span>
+            <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{log.ip}</span>
           ) : (
-            <span className="text-slate-300 italic text-[10px]">N/A</span>
+            <span className="text-slate-300 italic text-[10px]">Nativo BD</span>
           )}
       </td>
       <td className="px-6 py-3">

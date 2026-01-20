@@ -14,6 +14,10 @@ export const useUserCollection = (restrictedToRole?: UserRole) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRole | 'ALL'>(restrictedToRole || 'ALL');
   const [viewMode, setViewMode] = useState<'ACTIVE' | 'ARCHIVED'>('ACTIVE');
+  
+  // Estados de Paginação
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const loadUsers = useCallback(async () => {
     if (!currentUser) return;
@@ -32,10 +36,12 @@ export const useUserCollection = (restrictedToRole?: UserRole) => {
     loadUsers();
   }, [loadUsers]);
 
-  const filteredUsers = useMemo(() => {
-    const search = searchTerm.toLowerCase();
+  // Aplica filtros e pesquisa primeiro
+  const filteredData = useMemo(() => {
+    const search = searchTerm.toLowerCase().trim();
+    
     return users.filter(u => {
-      const isArchived = u.department === 'PENDING_DELETION';
+      const isArchived = u.department === 'PENDING_DELETION' || u.isPendingDeletion;
       if (viewMode === 'ACTIVE' && isArchived) return false;
       if (viewMode === 'ARCHIVED' && !isArchived) return false;
 
@@ -44,9 +50,43 @@ export const useUserCollection = (restrictedToRole?: UserRole) => {
       const matchesRole = targetRole === 'ALL' || uRole === normalizeRole(targetRole);
       if (!matchesRole) return false;
 
-      return u.name.toLowerCase().includes(search) || u.email.toLowerCase().includes(search);
+      if (search) {
+        return (
+          u.name.toLowerCase().includes(search) || 
+          u.email.toLowerCase().includes(search) ||
+          u.organizationName?.toLowerCase().includes(search)
+        );
+      }
+        
+      return true;
     });
   }, [users, searchTerm, roleFilter, viewMode, restrictedToRole]);
 
-  return { filteredUsers, loading, searchTerm, setSearchTerm, roleFilter, setRoleFilter, viewMode, setViewMode, refresh: loadUsers };
+  // Pagina o resultado filtrado
+  const paginatedUsers = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredData.slice(start, start + pageSize);
+  }, [filteredData, page, pageSize]);
+
+  // Reset de página ao filtrar
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, roleFilter, viewMode]);
+
+  return { 
+    filteredUsers: paginatedUsers, 
+    totalItems: filteredData.length,
+    loading, 
+    searchTerm, 
+    setSearchTerm, 
+    roleFilter, 
+    setRoleFilter, 
+    viewMode, 
+    setViewMode, 
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    refresh: loadUsers 
+  };
 };

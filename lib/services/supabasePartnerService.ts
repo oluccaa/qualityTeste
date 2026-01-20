@@ -1,7 +1,7 @@
 
 import { IPartnerService, DashboardStatsData } from './interfaces.ts';
 import { supabase } from '../supabaseClient.ts';
-import { QualityStatus, User } from '../../types/index.ts';
+import { QualityStatus, User, UserRole } from '../../types/index.ts';
 import { logAction } from './loggingService.ts';
 import { toDomainFile } from '../mappers/fileMapper.ts';
 
@@ -101,6 +101,27 @@ export const SupabasePartnerService: IPartnerService = {
   },
 
   logFileView: async (user, file) => {
+    // Se for um cliente visualizando, atualiza o timestamp no metadata do arquivo
+    if (user.role === UserRole.CLIENT) {
+        try {
+            const now = new Date().toISOString();
+            const { data: currentFile } = await supabase.from('files').select('metadata').eq('id', file.id).single();
+            
+            const updatedMetadata = {
+                ...(currentFile?.metadata || {}),
+                viewedAt: now,
+                lastClientInteractionAt: now,
+                lastClientInteractionBy: user.name
+            };
+
+            await supabase.from('files')
+                .update({ metadata: updatedMetadata })
+                .eq('id', file.id);
+        } catch (e) {
+            console.error("Falha ao atualizar timestamp de visualização:", e);
+        }
+    }
+
     await logAction(user, 'CLIENT_FILE_VIEW', file.name, 'DATA', 'INFO', 'SUCCESS', { fileId: file.id });
   },
 

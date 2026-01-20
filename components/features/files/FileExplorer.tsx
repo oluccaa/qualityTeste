@@ -58,11 +58,11 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>((p
   };
 
   return (
-    <div className="absolute inset-0 overflow-y-auto custom-scrollbar bg-slate-50/40">
-      <div className="p-6 md:p-8">
-        <div className="max-w-[1600px] mx-auto pb-20">
+    <div className="absolute inset-0 overflow-y-auto custom-scrollbar bg-slate-50">
+      <div className="p-4 md:p-6 lg:p-8">
+        <div className="max-w-[1800px] mx-auto pb-32">
           {viewMode === 'list' ? (
-            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <FileListView {...viewProps} />
             </div>
           ) : (

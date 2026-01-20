@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { List, LayoutGrid, UploadCloud, FolderPlus, Trash2, MoreHorizontal, Download, Search, Filter } from 'lucide-react';
+import { List, LayoutGrid, UploadCloud, FolderPlus, Trash2, MoreHorizontal, Download, Search, Filter, X } from 'lucide-react';
 import { BreadcrumbItem, FileNode, UserRole } from '../../../../types/index.ts';
 import { Breadcrumbs } from './Breadcrumbs.tsx';
 
@@ -65,10 +65,18 @@ export const ExplorerToolbar: React.FC<ExplorerToolbarProps> = ({
           <input 
             type="text" 
             placeholder="Rastrear por Lote ou Descritor..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/30 transition-all placeholder:text-slate-400" 
+            className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/30 transition-all placeholder:text-slate-400 shadow-sm" 
             value={searchTerm} 
             onChange={e => onSearchChange(e.target.value)} 
           />
+          {searchTerm && (
+              <button 
+                onClick={() => onSearchChange('')}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-slate-600 transition-all"
+              >
+                  <X size={14} />
+              </button>
+          )}
         </div>
 
         {/* Global Context Actions or Selection Actions */}

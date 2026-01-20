@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
-import { Bell, ArrowLeft, User as UserIcon, Settings } from 'lucide-react'; 
+import { Bell, ArrowLeft } from 'lucide-react'; 
 import { User, UserRole } from '../../types/index.ts';
 import { LanguageSelector } from '../features/auth/login/LanguageSelector.tsx'; 
 import { NotificationsDropdown } from '../features/notifications/NotificationsDropdown.tsx';
@@ -56,12 +56,6 @@ export const Header: React.FC<HeaderProps> = ({
               isOpen={isNotificationsDropdownOpen} 
               onClose={() => setIsNotificationsDropdownOpen(false)} 
             />
-            
-            <div className="h-8 w-px bg-slate-200 mx-2" />
-            
-            <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-blue-600 transition-colors">
-              <UserIcon size={18} strokeWidth={2} />
-            </div>
           </div>
         </div>
       </header>
@@ -77,7 +71,6 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-1">
             <NotificationTrigger count={unreadCount} className="text-slate-600" onClick={() => setIsNotificationsDropdownOpen(true)} />
             <NotificationsDropdown isOpen={isNotificationsDropdownOpen} onClose={() => setIsNotificationsDropdownOpen(false)} />
-            <button onClick={onOpenMobileMenu} className="p-2 text-slate-600"><Settings size={20} /></button>
         </div>
       </header>
     </>

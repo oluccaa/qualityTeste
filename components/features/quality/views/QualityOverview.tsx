@@ -1,21 +1,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { fileService, adminService } from '../../../../lib/services/index.ts';
+import { useNavigate } from 'react-router-dom';
+import { adminService } from '../../../../lib/services/index.ts';
 import { supabase } from '../../../../lib/supabaseClient.ts';
 import { useAuth } from '../../../../context/authContext.tsx';
 import { useToast } from '../../../../context/notificationContext.tsx';
 import { QualityLoadingState } from '../components/ViewStates.tsx';
 import { QualityOverviewCards } from '../components/QualityOverviewCards.tsx';
-import { Send, ArrowRight, FileWarning, History } from 'lucide-react';
+import { ArrowRight, FileWarning, History } from 'lucide-react';
 import { QualityStatus } from '../../../../types/enums.ts';
 
 export const QualityOverview: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const [, setSearchParams] = useSearchParams();
 
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,7 +23,7 @@ export const QualityOverview: React.FC = () => {
     const loadStats = async () => {
       if (!user) return;
       try {
-        // Busca multicritério para dados reais
+        // Busca multicritério para dados reais em tempo real
         const [activeClientsRes, pendingRes, rejectedRes, totalRes, approvedRes] = await Promise.all([
           adminService.getClients({ status: 'ACTIVE' }, 1, 1),
           supabase.from('files').select('*', { count: 'exact', head: true }).eq('metadata->>status', QualityStatus.PENDING).neq('type', 'FOLDER'),
@@ -57,13 +56,13 @@ export const QualityOverview: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* KPIs Dinâmicos com Dados Reais */}
+      {/* KPIs Dinâmicos com Navegação Direta para Páginas */}
       <QualityOverviewCards
         totalClients={stats?.totalActiveClients || 0}
         totalPendingDocs={stats?.pendingDocs || 0}
         complianceRate={stats?.complianceRate || "0"}
         totalRejected={stats?.rejectedByClient || 0}
-        onChangeView={(v) => setSearchParams({ view: v })}
+        onNavigate={(path) => navigate(path)}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -81,7 +80,7 @@ export const QualityOverview: React.FC = () => {
                  <span className="text-blue-400">Laudos Técnicos.</span>
                </h2>
                <p className="text-slate-400 max-w-sm text-sm font-medium leading-relaxed">
-                 Inicie o fluxo de auditoria enviando novos certificados para a carteira de parceiros.
+                 Inicie o fluxo de auditoria selecionando um cliente para envio de novos certificados.
                </p>
             </div>
 
@@ -89,7 +88,7 @@ export const QualityOverview: React.FC = () => {
               onClick={() => navigate('/quality/portfolio')}
               className="bg-white text-[#132659] px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-[3px] shadow-xl hover:bg-blue-50 transition-all active:scale-95 flex items-center gap-3"
             >
-              Enviar Documento
+              Acessar Carteira
             </button>
           </div>
         </div>
@@ -105,15 +104,15 @@ export const QualityOverview: React.FC = () => {
              </div>
              <p className="text-4xl font-black text-red-600 tracking-tighter">{stats?.rejectedByClient || 0}</p>
              <p className="text-xs text-slate-500 font-medium leading-relaxed italic">
-               Certificados recusados que exigem retificação ou mediação imediata.
+               Certificados recusados que exigem retificação ou mediação imediata no fluxo.
              </p>
           </div>
           
           <button 
-            onClick={() => setSearchParams({ view: 'feedback' })}
+            onClick={() => navigate('/quality/monitor')}
             className="w-full mt-6 py-4 bg-red-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-700 transition-all shadow-lg"
           >
-            Ver Detalhes <ArrowRight size={14} />
+            Ver Alertas <ArrowRight size={14} />
           </button>
         </div>
       </div>

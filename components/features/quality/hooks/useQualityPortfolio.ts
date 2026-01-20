@@ -16,13 +16,19 @@ export const useQualityPortfolio = () => {
     if (!user) return;
     setIsLoading(true);
     try {
-      // 1. Busca Portfólio Global e Pendências Globais
-      const [portfolio, pending] = await Promise.all([
-        qualityService.getManagedPortfolio(user.id), // Agora retorna todos
-        qualityService.getPendingInspections(user.id) // Agora retorna todos
-      ]);
+      // 1. Busca Portfólio Global
+      const portfolio = await qualityService.getManagedPortfolio(user.id);
 
-      // 2. Busca arquivos contestados globalmente usando sintaxe correta de texto ->>
+      // 2. Busca ativos em PENDING (Aguardando ação de qualquer parte - Vital ou Cliente)
+      const { data: pending, error: pendingError } = await supabase
+        .from('files')
+        .select('*, profiles:uploaded_by(full_name)')
+        .eq('metadata->>status', QualityStatus.PENDING)
+        .neq('type', 'FOLDER');
+
+      if (pendingError) console.error("Erro ao buscar pendências:", pendingError);
+
+      // 3. Busca arquivos em REJECTED ou TO_DELETE (Aguardando novo upload da Vital)
       const { data: rejected, error: rejectedError } = await supabase
         .from('files')
         .select('*')
@@ -32,10 +38,10 @@ export const useQualityPortfolio = () => {
       if (rejectedError) console.error("Erro ao buscar arquivos rejeitados:", rejectedError);
 
       setClients(portfolio);
-      setPendingFiles(pending);
+      setPendingFiles(pending || []);
       setRejectedFiles(rejected || []);
     } catch (err) {
-      console.error("Quality Context Error:", err);
+      console.error("Quality Context Sync Failure:", err);
     } finally {
       setIsLoading(false);
     }

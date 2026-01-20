@@ -2,7 +2,7 @@
 import { IAdminService, AdminStatsData, PaginatedResponse, RawClientOrganization } from './interfaces.ts';
 import { supabase } from '../supabaseClient.ts';
 import { SystemStatus, MaintenanceEvent } from '../../types/system.ts';
-import { ClientOrganization, User, UserRole, normalizeRole } from '../../types/index.ts';
+import { ClientOrganization, User, UserRole, normalizeRole, AccountStatus } from '../../types/index.ts';
 import { withAuditLog } from '../utils/auditLogWrapper.ts';
 import { withTimeout } from '../utils/apiUtils.ts';
 import { PostgrestResponse, PostgrestSingleResponse } from '@supabase/supabase-js';
@@ -135,7 +135,6 @@ export const SupabaseAdminService: IAdminService = {
       const { data: res, error } = await query.select().maybeSingle();
       
       if (error) {
-        // Log detalhado para depuração, convertendo erro para JSON legível
         console.error("[Supabase Error] saveClient:", JSON.stringify(error, null, 2));
         throw error;
       }
@@ -176,8 +175,18 @@ export const SupabaseAdminService: IAdminService = {
     return await withAuditLog(user, 'CLIENT_DELETE', { target: id, category: 'DATA', initialSeverity: 'WARNING' }, action);
   },
 
+  flagClientForDeletion: async (user, clientId) => {
+    const action = async () => {
+      const { error } = await supabase.from('organizations').update({ 
+        status: AccountStatus.INACTIVE,
+        // Nota: Idealmente haveria uma coluna is_pending_deletion no DB real
+      }).eq('id', clientId);
+      if (error) throw error;
+    };
+    return await withAuditLog(user, 'CLIENT_FLAGGED_DELETION', { target: clientId, category: 'DATA', initialSeverity: 'WARNING' }, action);
+  },
+
   scheduleMaintenance: async (user, event) => {
-     // Fix: Used camelCase properties (scheduledDate, durationMinutes) from the MaintenanceEvent interface
      const { data, error } = await supabase.from('maintenance_events').insert({ title: event.title, scheduled_date: event.scheduledDate, duration_minutes: event.durationMinutes, description: event.description, status: 'SCHEDULED', created_by: user.id }).select().single();
      if (error) throw error;
      return { id: data.id, title: data.title, scheduledDate: data.scheduled_date, durationMinutes: data.duration_minutes, description: data.description, status: data.status, createdBy: data.created_by } as MaintenanceEvent;
@@ -186,7 +195,24 @@ export const SupabaseAdminService: IAdminService = {
   getGlobalAuditLogs: async () => {
     const { data, error } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(200);
     if (error) throw error;
-    return (data || []).map(l => ({ id: l.id, timestamp: l.created_at, userId: l.user_id, userName: l.metadata?.userName || 'Sistema', userRole: l.metadata?.userRole || 'UNKNOWN', action: l.action, category: l.category, target: l.target, severity: l.severity, status: l.status, ip: l.ip, location: l.location, userAgent: l.user_agent, device: l.device, metadata: l.metadata, requestId: l.request_id }));
+    return (data || []).map(l => ({ 
+        id: l.id, 
+        timestamp: l.created_at, 
+        userId: l.user_id, 
+        userName: l.metadata?.userName || 'Sistema', 
+        userRole: l.metadata?.userRole || 'UNKNOWN', 
+        action: l.action, 
+        category: l.category, 
+        target: l.target, 
+        severity: l.severity, 
+        status: l.status, 
+        ip: l.ip, // Pega direto do banco preenchido pela trigger
+        location: l.location, 
+        userAgent: l.user_agent, 
+        device: l.device, 
+        metadata: l.metadata, 
+        requestId: l.request_id 
+    }));
   },
 
   manageUserAccess: async (admin, targetUser) => {

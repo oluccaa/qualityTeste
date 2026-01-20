@@ -1,10 +1,11 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { FileNode, SteelBatchMetadata, User, FileType } from '../../../../types/index.ts';
-import { fileService } from '../../../../lib/services/index.ts';
+import { FileNode, SteelBatchMetadata, User, FileType, UserRole, normalizeRole } from '../../../../types/index.ts';
+import { fileService, partnerService } from '../../../../lib/services/index.ts';
 import { useToast } from '../../../../context/notificationContext.tsx';
 
 export const useFilePreview = (user: User | null, initialFile: FileNode | null) => {
+  // Fix: Corrected hook call from showToast() to useToast() to avoid self-referencing declaration error
   const { showToast } = useToast();
   const [currentFile, setCurrentFile] = useState<FileNode | null>(initialFile);
   const [url, setUrl] = useState<string | null>(null);
@@ -13,6 +14,7 @@ export const useFilePreview = (user: User | null, initialFile: FileNode | null) 
   const [zoom, setZoom] = useState(1.0);
   
   const isLoadedRef = useRef(false);
+  const hasLoggedViewRef = useRef(false);
 
   const loadFileDetails = useCallback(async (id: string) => {
     if (!user) return;
@@ -23,6 +25,12 @@ export const useFilePreview = (user: User | null, initialFile: FileNode | null) 
         
         const signed = await fileService.getFileSignedUrl(user, id);
         setUrl(signed);
+
+        // Se for cliente, loga a visualização após carregar os detalhes
+        if (normalizeRole(user.role) === UserRole.CLIENT && !hasLoggedViewRef.current) {
+            hasLoggedViewRef.current = true;
+            await partnerService.logFileView(user, fileData);
+        }
     } catch (e: any) {
         console.error("[useFilePreview] Falha técnica:", e);
         showToast(e.message || "Falha ao autenticar acesso ao repositório.", "error");
@@ -34,13 +42,19 @@ export const useFilePreview = (user: User | null, initialFile: FileNode | null) 
   useEffect(() => {
     if (!user || !initialFile?.id) return;
     
-    // Se o initialFile só tem ID, carregamos tudo. Se já tem nome, assumimos que está completo e só pedimos a URL
     if (!initialFile.name) {
         loadFileDetails(initialFile.id);
     } else if (!isLoadedRef.current) {
         isLoadedRef.current = true;
         fileService.getFileSignedUrl(user, initialFile.id)
-            .then(setUrl)
+            .then(async (signedUrl) => {
+                setUrl(signedUrl);
+                // Se for cliente e já temos o objeto do arquivo, loga a visualização
+                if (normalizeRole(user.role) === UserRole.CLIENT && !hasLoggedViewRef.current) {
+                    hasLoggedViewRef.current = true;
+                    await partnerService.logFileView(user, initialFile);
+                }
+            })
             .catch(e => showToast("Erro ao gerar link de visualização.", "error"));
     }
   }, [initialFile?.id, user, loadFileDetails, initialFile?.name, showToast]);

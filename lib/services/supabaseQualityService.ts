@@ -81,7 +81,23 @@ export const SupabaseQualityService: IQualityService = {
     if (filters?.severity && filters.severity !== 'ALL') query = query.eq('severity', filters.severity);
     const { data, error } = await query.order('created_at', { ascending: false }).limit(100);
     if (error) throw error;
-    return (data || []).map(l => ({ id: l.id, timestamp: l.created_at, userId: l.user_id, userName: l.metadata?.userName || 'Operador', userRole: l.metadata?.userRole || 'UNKNOWN', action: l.action, category: l.category as any, target: l.target || 'N/A', severity: l.severity as any, status: 'SUCCESS', ip: l.ip || '0.0.0.0', location: 'Brasil', userAgent: l.user_agent || '', metadata: l.metadata || {}, requestId: l.id.split('-')[0] }));
+    return (data || []).map(l => ({ 
+      id: l.id, 
+      timestamp: l.created_at, 
+      userId: l.user_id, 
+      userName: l.metadata?.userName || 'Operador', 
+      userRole: l.metadata?.userRole || 'UNKNOWN', 
+      action: l.action, 
+      category: l.category as any, 
+      target: l.target || 'N/A', 
+      severity: l.severity as any, 
+      status: 'SUCCESS', 
+      ip: l.ip, // IP vindo direto da coluna do banco
+      location: l.metadata?.location || 'Brasil', 
+      userAgent: l.user_agent || '', 
+      metadata: l.metadata || {}, 
+      requestId: l.id.split('-')[0] 
+    }));
   },
 
   getPortfolioFileExplorer: async (analystId, folderId) => {
@@ -105,11 +121,24 @@ export const SupabaseQualityService: IQualityService = {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    const { data, count, error } = await query.range(from, to).order('name');
+    const { data: orgs, count, error } = await query.range(from, to).order('name');
     if (error) throw error;
 
+    const orgIds = (orgs || []).map(o => o.id);
+    const { data: pendingFiles } = await supabase
+      .from('files')
+      .select('owner_id')
+      .in('owner_id', orgIds)
+      .eq('metadata->>status', QualityStatus.PENDING)
+      .neq('type', 'FOLDER');
+
+    const pendingCountMap = (pendingFiles || []).reduce((acc: Record<string, number>, file) => {
+      acc[file.owner_id] = (acc[file.owner_id] || 0) + 1;
+      return acc;
+    }, {});
+
     return {
-      items: (data || []).map(org => {
+      items: (orgs || []).map(org => {
         const profileData = Array.isArray(org.profiles) ? org.profiles[0] : org.profiles;
         return {
           id: org.id,
@@ -118,7 +147,8 @@ export const SupabaseQualityService: IQualityService = {
           status: org.status,
           contractDate: org.contract_date,
           qualityAnalystId: org.quality_analyst_id,
-          qualityAnalystName: profileData?.full_name || 'Não Atribuído'
+          qualityAnalystName: profileData?.full_name || 'Não Atribuído',
+          pendingDocs: pendingCountMap[org.id] || 0
         };
       }),
       total: count || 0,
@@ -135,7 +165,6 @@ export const SupabaseQualityService: IQualityService = {
   },
 
   saveInspectionSnapshot: async (fileId, user, metadata) => {
-    // Busca informações do arquivo para o snapshot
     const { data: file } = await supabase.from('files').select('storage_path, version_number').eq('id', fileId).single();
     
     const { error } = await supabase.from('file_reviews').insert({
@@ -149,16 +178,13 @@ export const SupabaseQualityService: IQualityService = {
         annotations: {
             documental: {
                 status: metadata.documentalStatus,
-                // Fix: documentalFlags added to SteelBatchMetadata to resolve property access error
                 flags: metadata.documentalFlags,
                 notes: metadata.documentalNotes
             },
             physical: {
                 status: metadata.physicalStatus,
-                // Fix: physicalFlags added to SteelBatchMetadata to resolve property access error
                 flags: metadata.physicalFlags,
                 notes: metadata.physicalNotes,
-                // Fix: physicalPhotos added to SteelBatchMetadata to resolve property access error
                 photos_count: metadata.physicalPhotos?.length || 0
             }
         },

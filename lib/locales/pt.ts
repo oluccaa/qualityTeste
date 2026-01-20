@@ -81,7 +81,7 @@ export const pt = {
       headers: {
         timestamp: "Data/Hora",
         user: "Operador",
-        action: "Operation",
+        action: "Operação",
         target: "Resumo",
         ip: "IP de Origem",
         severity: "Nível"
@@ -172,7 +172,7 @@ export const pt = {
     vitalStandard: "PADRÃO AÇOS VITAL",
     traceability: "Rastreabilidade",
     disclaimer: "Todos os certificados exibidos neste portal foram validados pelo laboratório técnico da Aços Vital.",
-    available: "Disponível",
+    available: "Available",
     noRecentFiles: "Nenhum arquivo recente encontrado.",
     criticalPendencies: "Pendências Críticas",
     lastAnalysis: "Última Análise",
@@ -192,7 +192,7 @@ export const pt = {
     qualityManagement: "Conformidade de Qualidade",
     portalName: "Portal da Qualidade",
     brand: "Aços Vital",
-    systemMonitoring: "MONITORAMENTO DE INFRAESTRUTURA",
+    systemMonitoring: "MONITORAMENTO DE INFRAESTRUCTURA",
     settings: "Preferências do Perfil",
     sections: {
       main: "Navegação Principal",
@@ -203,7 +203,7 @@ export const pt = {
   },
   files: {
     authenticatingAccess: "Autorizando Solicitação...",
-    authenticatingLayers: "Validando Camadas de Segurança...",
+    authenticatingLayers: "Validating Security Layers...",
     authenticatedView: "Viewport Verificado",
     errorLoadingDocument: "Falha ao renderizar recurso técnico.",
     errorLoadingFiles: "Erro de sincronização de recursos.",

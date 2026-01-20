@@ -7,7 +7,7 @@ interface QualityOverviewCardsProps {
   totalPendingDocs: number;
   complianceRate: string;
   totalRejected: number;
-  onChangeView: (view: string) => void;
+  onNavigate: (path: string) => void;
 }
 
 interface KpiConfig {
@@ -17,7 +17,7 @@ interface KpiConfig {
     subtext: string;
     icon: LucideIcon;
     color: string;
-    view: string;
+    path: string;
     shadow: string;
     accent: string;
 }
@@ -27,7 +27,7 @@ export const QualityOverviewCards: React.FC<QualityOverviewCardsProps> = ({
   totalPendingDocs, 
   complianceRate, 
   totalRejected, 
-  onChangeView 
+  onNavigate 
 }) => {
   const cardConfig: KpiConfig[] = useMemo(() => [
     {
@@ -38,7 +38,7 @@ export const QualityOverviewCards: React.FC<QualityOverviewCardsProps> = ({
       icon: Building2,
       color: "bg-[#132659]",
       shadow: "shadow-slate-900/5",
-      view: 'clients',
+      path: '/quality/portfolio',
       accent: "text-blue-400"
     },
     {
@@ -49,7 +49,7 @@ export const QualityOverviewCards: React.FC<QualityOverviewCardsProps> = ({
       icon: FileWarning,
       color: "bg-[#b23c0e]",
       shadow: "shadow-[#b23c0e]/10",
-      view: 'clients',
+      path: '/quality/monitor',
       accent: "text-white"
     },
     {
@@ -60,7 +60,7 @@ export const QualityOverviewCards: React.FC<QualityOverviewCardsProps> = ({
       icon: ShieldCheck,
       color: "bg-emerald-600",
       shadow: "shadow-emerald-500/10",
-      view: 'overview',
+      path: '/quality/audit',
       accent: "text-white"
     },
     {
@@ -71,7 +71,7 @@ export const QualityOverviewCards: React.FC<QualityOverviewCardsProps> = ({
       icon: Activity,
       color: totalRejected > 0 ? "bg-red-600" : "bg-slate-600",
       shadow: "shadow-slate-500/5",
-      view: 'feedback',
+      path: '/quality/monitor',
       accent: "text-white"
     }
   ], [totalClients, totalPendingDocs, complianceRate, totalRejected]);
@@ -82,7 +82,7 @@ export const QualityOverviewCards: React.FC<QualityOverviewCardsProps> = ({
         <KpiCard 
             key={card.id} 
             card={card} 
-            onClick={() => onChangeView(card.view)} 
+            onClick={() => onNavigate(card.path)} 
         />
       ))}
     </div>

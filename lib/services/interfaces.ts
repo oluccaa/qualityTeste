@@ -131,6 +131,7 @@ export interface IAdminService {
   getClients: (filters?: { search?: string; status?: string }, page?: number, pageSize?: number) => Promise<PaginatedResponse<ClientOrganization>>;
   saveClient: (user: User, data: Partial<ClientOrganization>) => Promise<ClientOrganization>;
   deleteClient: (user: User, id: string) => Promise<void>;
+  flagClientForDeletion: (user: User, clientId: string) => Promise<void>;
   scheduleMaintenance: (user: User, event: Partial<MaintenanceEvent>) => Promise<MaintenanceEvent>;
   updateGatewayMode: (user: User, mode: SystemStatus['mode']) => Promise<void>;
   getGlobalAuditLogs: () => Promise<AuditLog[]>;

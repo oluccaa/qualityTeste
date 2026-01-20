@@ -12,6 +12,7 @@ import { CreateFolderModal } from '../../files/modals/CreateFolderModal.tsx';
 import { RenameModal } from '../../files/modals/RenameModal.tsx';
 import { UploadFileModal } from '../../files/modals/UploadFileModal.tsx';
 import { DeleteConfirmationModal } from '../../files/modals/DeleteConfirmationModal.tsx';
+import { PaginationControls } from '../../../common/PaginationControls.tsx';
 import { QualityLoadingState, ProcessingOverlay } from '../components/ViewStates.tsx';
 import { fileService } from '../../../../lib/services/index.ts';
 import { supabase } from '../../../../lib/supabaseClient.ts';
@@ -49,7 +50,6 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
 
   useEffect(() => {
     const resolveInitialFolder = async () => {
-      // Se for global, não precisamos resolver pasta raiz de organização
       if (orgId === 'global') {
         setIsReady(true);
         return;
@@ -84,7 +84,7 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
   }, [orgId, currentFolderId]);
 
   const collection = useFileCollection({ currentFolderId, searchTerm, ownerId: orgId });
-  const ops = useFileOperations(contextualOwnerId, () => collection.fetchFiles(true));
+  const ops = useFileOperations(contextualOwnerId, () => collection.fetchFiles());
 
   const activeSelectedFile = collection.files.find(f => f.id === selectedFileIds[selectedFileIds.length - 1]) || null;
 
@@ -109,7 +109,7 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
   if (!isReady) return <QualityLoadingState message="Sincronizando Vault..." />;
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden animate-in fade-in duration-500">
+    <div className="flex flex-col h-full bg-white overflow-hidden animate-in fade-in duration-500">
       {ops.isProcessing && <ProcessingOverlay message="Atualizando Base de Dados..." />}
       
       <UploadFileModal isOpen={modals.upload} onClose={() => setModals(m => ({...m, upload: false}))} onUpload={async (f, n) => { await ops.handleUpload(f, n, currentFolderId); setModals(m => ({...m, upload: false})); }} isUploading={ops.isProcessing} currentFolderId={currentFolderId} />
@@ -134,23 +134,34 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
         selectedFilesData={collection.files.filter(f => selectedFileIds.includes(f.id))} 
       />
 
-      <div className="flex-1 relative bg-slate-50/50">
-        <FileExplorer 
-            ref={fileExplorerRef} 
-            files={collection.files} 
-            loading={collection.loading} 
-            currentFolderId={currentFolderId} 
-            searchTerm={searchTerm} 
-            breadcrumbs={collection.breadcrumbs} 
-            selectedFileIds={selectedFileIds} 
-            onToggleFileSelection={(id) => setSelectedFileIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])} 
-            onNavigate={handleNavigate} 
-            onFileSelectForPreview={handleFileClick} 
-            onDownloadFile={() => {}} 
-            onRenameFile={(f) => { setFileToRename(f); setModals(m => ({...m, rename: true})); }} 
-            onDeleteFile={(id) => { setSelectedFileIds([id]); setModals(m => ({...m, delete: true})); }} 
-            viewMode={viewMode} 
-            userRole={user?.role as UserRole} 
+      <div className="flex-1 relative bg-slate-50 flex flex-col">
+        <div className="flex-1 relative min-h-0">
+          <FileExplorer 
+              ref={fileExplorerRef} 
+              files={collection.files} 
+              loading={collection.loading} 
+              currentFolderId={currentFolderId} 
+              searchTerm={searchTerm} 
+              breadcrumbs={collection.breadcrumbs} 
+              selectedFileIds={selectedFileIds} 
+              onToggleFileSelection={(id) => setSelectedFileIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])} 
+              onNavigate={handleNavigate} 
+              onFileSelectForPreview={handleFileClick} 
+              onDownloadFile={() => {}} 
+              onRenameFile={(f) => { setFileToRename(f); setModals(m => ({...m, rename: true})); }} 
+              onDeleteFile={(id) => { setSelectedFileIds([id]); setModals(m => ({...m, delete: true})); }} 
+              viewMode={viewMode} 
+              userRole={user?.role as UserRole} 
+          />
+        </div>
+        
+        <PaginationControls 
+          currentPage={collection.page}
+          pageSize={collection.pageSize}
+          totalItems={collection.totalItems}
+          onPageChange={collection.setPage}
+          onPageSizeChange={collection.setPageSize}
+          isLoading={collection.loading}
         />
       </div>
     </div>

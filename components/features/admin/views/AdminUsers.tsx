@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, UserPlus, Loader2, Archive, Users as UsersIcon } from 'lucide-react';
+import { Search, UserPlus, Loader2, Users as UsersIcon } from 'lucide-react';
 import { UserList } from '../components/UserList.tsx';
 import { UserModal } from '../components/AdminModals.tsx';
+import { PaginationControls } from '../../../common/PaginationControls.tsx';
 import { useUserCollection } from '../hooks/useUserCollection.ts';
 import { useUserFormState } from '../hooks/useUserFormState.ts';
 import { adminService } from '../../../../lib/services/index.ts';
@@ -25,7 +26,6 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ setIsSaving, isSaving = 
     adminService.getClients({ status: 'ACTIVE' }, 1, 1000).then(res => setOrgs(res.items));
   }, []);
 
-  // Sincroniza estado de processamento global se necessário
   useEffect(() => {
     if (form.isProcessing !== isSaving) setIsSaving(form.isProcessing);
   }, [form.isProcessing, isSaving, setIsSaving]);
@@ -81,13 +81,27 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ setIsSaving, isSaving = 
         </div>
       </div>
 
-      {collection.loading ? (
-        <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-[2rem] border border-dashed border-slate-200"><Loader2 size={40} className="animate-spin text-blue-600 mb-4" /><p className="font-black text-[10px] uppercase tracking-[4px] text-slate-400">Sincronizando...</p></div>
-      ) : collection.filteredUsers.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-[2rem] border border-dashed border-slate-200 text-center p-8"><UsersIcon size={40} className="text-slate-200 mb-4" /><h3 className="text-sm font-bold text-slate-800 uppercase">Sem registros localizados</h3></div>
-      ) : (
-        <UserList users={collection.filteredUsers} onEdit={form.openModal} />
-      )}
+      <div className="flex-1 flex flex-col min-h-0 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        {collection.loading ? (
+          <div className="flex-1 flex flex-col items-center justify-center bg-white"><Loader2 size={40} className="animate-spin text-blue-600 mb-4" /><p className="font-black text-[10px] uppercase tracking-[4px] text-slate-400">Sincronizando...</p></div>
+        ) : collection.filteredUsers.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center bg-white text-center p-8"><UsersIcon size={40} className="text-slate-200 mb-4" /><h3 className="text-sm font-bold text-slate-800 uppercase">Sem registros localizados</h3></div>
+        ) : (
+          <>
+            <div className="flex-1 overflow-auto">
+              <UserList users={collection.filteredUsers} onEdit={form.openModal} />
+            </div>
+            <PaginationControls 
+              currentPage={collection.page}
+              pageSize={collection.pageSize}
+              totalItems={collection.totalItems}
+              onPageChange={collection.setPage}
+              onPageSizeChange={collection.setPageSize}
+              isLoading={collection.loading}
+            />
+          </>
+        )}
+      </div>
     </div>
   );
 };

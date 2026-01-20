@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Folder, FileText, ChevronRight, CheckSquare, Square, Clock, ShieldCheck } from 'lucide-react';
+import { Folder, FileText, CheckSquare, Square, Clock, HardDrive, Eye } from 'lucide-react';
 import { FileNode, FileType } from '../../../../types/index.ts';
 import { FileStatusBadge } from './FileStatusBadge.tsx';
 
@@ -14,36 +14,46 @@ interface FileRowProps {
 
 export const FileRow: React.FC<FileRowProps> = ({ file, isSelected, onNavigate, onPreview, onToggleSelection }) => {
   const isFolder = file.type === FileType.FOLDER;
+  const isViewed = !!file.metadata?.viewedAt;
   
   return (
     <div 
-      className={`group flex items-center px-6 py-3.5 hover:bg-blue-50/30 transition-all cursor-pointer relative border-b border-slate-50 last:border-0
-        ${isSelected ? 'bg-blue-50/50' : ''}`}
+      className={`group flex items-center px-8 py-3 hover:bg-slate-50 transition-all cursor-pointer relative border-b border-slate-100 last:border-0
+        ${isSelected ? 'bg-[#132659]/5' : ''}`}
       onClick={() => isFolder ? onNavigate(file.id) : onPreview(file)}
+      title={isFolder ? "Explorar Pasta" : "Abrir Certificado"}
     >
-      {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600" />}
-      
       <div className="w-10 shrink-0">
-         <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all border
-           ${isFolder ? 'bg-blue-100/50 border-blue-200 text-blue-600' : 'bg-white border-slate-200 text-slate-400 group-hover:border-blue-400 group-hover:text-blue-600'}`}>
-           {isFolder ? <Folder size={18} fill="currentColor" className="opacity-20" /> : <FileText size={18} />}
+         <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all border
+           ${isFolder ? 'bg-[#132659]/5 border-[#132659]/10 text-[#132659]' : 'bg-white border-slate-200 text-slate-400 group-hover:text-[#132659]'}`}>
+           {isFolder ? <Folder size={16} fill={isSelected ? "currentColor" : "none"} className="opacity-80" /> : <FileText size={16} />}
          </div>
       </div>
       
       <div className="flex-1 min-w-0 px-6">
         <div className="flex items-center gap-3">
-          <span className="text-sm font-bold text-slate-800 truncate tracking-tight uppercase">{file.name}</span>
+          <span className={`text-[13px] tracking-tight uppercase transition-colors ${isSelected || isFolder ? 'font-bold text-slate-900' : 'font-medium text-slate-600 group-hover:text-slate-900'}`}>
+            {file.name}
+          </span>
+          {isViewed && !isFolder && (
+            <div className="flex items-center gap-1 text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100" title={`Visualizado pelo cliente em ${new Date(file.metadata!.viewedAt!).toLocaleDateString()}`}>
+               <Eye size={10} strokeWidth={3} />
+               <span className="text-[8px] font-black uppercase">Visto</span>
+            </div>
+          )}
           {!isFolder && file.metadata?.batchNumber && (
-            <span className="text-[8px] font-black bg-slate-900 text-white px-1.5 py-0.5 rounded tracking-widest">LOT: {file.metadata.batchNumber}</span>
+            <span className="text-[8px] font-black bg-slate-900 text-white px-1.5 py-0.5 rounded tracking-[2px]">
+              LOT: {file.metadata.batchNumber}
+            </span>
           )}
         </div>
       </div>
 
-      <div className="w-24 hidden lg:block text-[10px] font-bold text-slate-400 font-mono tracking-tighter">
+      <div className="w-24 hidden lg:block text-[10px] font-bold text-slate-400 font-mono tracking-tighter text-right px-4">
         {isFolder ? '--' : file.size || '--'}
       </div>
 
-      <div className="w-36 hidden md:block">
+      <div className="w-40 hidden md:block">
         <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
             <Clock size={12} className="text-slate-300" />
             {new Date(file.updatedAt).toLocaleDateString()}
@@ -54,16 +64,19 @@ export const FileRow: React.FC<FileRowProps> = ({ file, isSelected, onNavigate, 
         {!isFolder ? (
             <FileStatusBadge status={file.metadata?.status} />
         ) : (
-            <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Pasta Estrutural</span>
+            <div className="flex items-center gap-1.5 text-slate-300">
+               <HardDrive size={12} />
+               <span className="text-[8px] font-black uppercase tracking-widest">Dossier</span>
+            </div>
         )}
       </div>
 
-      <div className="w-20 flex items-center justify-end gap-3">
+      <div className="w-16 flex items-center justify-end">
          <button 
             onClick={(e) => { e.stopPropagation(); onToggleSelection(file.id); }}
-            className={`p-2 rounded-lg transition-all border ${isSelected ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-300 hover:text-blue-600'}`}
+            className={`p-2 rounded-lg transition-all ${isSelected ? 'text-[#132659]' : 'text-slate-200 hover:text-slate-400 opacity-0 group-hover:opacity-100'}`}
          >
-            {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+            {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
          </button>
       </div>
     </div>

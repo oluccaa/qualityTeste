@@ -1,9 +1,11 @@
+
 import { supabase } from '../supabaseClient.ts';
 import { User, AuditLog } from '../../types/index.ts';
 
 /**
  * Registro de Auditoria B2B - Aços Vital
  * Implementa persistência de ações críticas para conformidade técnica.
+ * O IP agora é capturado diretamente pelo banco de dados para maior precisão forense.
  */
 export const logAction = async (
     user: User | null, 
@@ -18,16 +20,8 @@ export const logAction = async (
         const userAgent = navigator.userAgent;
         const requestId = crypto.randomUUID().split('-')[0].toUpperCase();
         
-        // Tentativa de obter IP e Localização (Fallback para 0.0.0.0)
-        let ip = '0.0.0.0';
-        let location = 'Local Network';
-        
-        try {
-            const ipRes = await fetch('https://api.ipify.org?format=json');
-            const ipData = await ipRes.json();
-            ip = ipData.ip;
-        } catch { /* IP Fetch Silent Fail */ }
-
+        // Enviamos o log sem o campo IP para que o banco utilize o valor default 
+        // ou capturado via trigger (ex: request.headers() no Supabase/Postgres)
         await supabase.from('audit_logs').insert({
             user_id: user?.id || null,
             action,
@@ -35,13 +29,11 @@ export const logAction = async (
             category,
             severity,
             status,
-            ip,
             user_agent: userAgent,
             request_id: requestId,
             metadata: { 
                 userName: user?.name || 'Sistema', 
                 userRole: user?.role || 'SYSTEM',
-                location,
                 ...metadata 
             }
         });
