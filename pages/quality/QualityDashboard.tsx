@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Layout } from '../../components/layout/MainLayout.tsx';
 import { QualityOverview } from '../../components/features/quality/views/QualityOverview.tsx';
@@ -12,7 +13,7 @@ const QualityDashboard: React.FC = () => {
       <div className="space-y-8 animate-in fade-in duration-700">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-[#081437] text-blue-400 rounded-2xl shadow-xl">
+              <div className="p-3 bg-white text-blue-600 rounded-2xl shadow-sm border border-slate-200">
                   <Zap size={24} />
               </div>
               <div>

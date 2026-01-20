@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Layout } from '../../components/layout/MainLayout.tsx';
 import { QualityAuditLog } from '../../components/features/quality/views/QualityAuditLog.tsx';
@@ -9,7 +10,7 @@ const QualityAuditHistory: React.FC = () => {
       <div className="space-y-6 animate-in fade-in duration-500">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <div className="flex items-center gap-4">
-                <div className="p-3 bg-slate-800 text-white rounded-2xl shadow-xl">
+                <div className="p-3 bg-white text-slate-700 rounded-2xl shadow-sm border border-slate-200">
                     <History size={24} />
                 </div>
                 <div>

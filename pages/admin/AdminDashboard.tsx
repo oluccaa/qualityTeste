@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/layout/MainLayout.tsx';
@@ -54,7 +55,7 @@ const AdminDashboard: React.FC = () => {
 };
 
 const AdminHero = ({ user, systemStatus, t }: any) => (
-  <div className="bg-[#081437] rounded-[2.5rem] p-10 text-white relative overflow-hidden shadow-2xl border border-white/5">
+  <div className="bg-[#132659] rounded-[2.5rem] p-10 text-white relative overflow-hidden shadow-2xl border border-white/5">
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2"></div>
       <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
           <div className="space-y-4">
@@ -83,7 +84,7 @@ const QuickAction = ({ icon: Icon, label, desc, path, color, navigate }: any) =>
   <button onClick={() => navigate(path)} className="flex items-start gap-4 p-6 bg-white border border-slate-200 rounded-[2rem] hover:border-blue-600 hover:shadow-2xl transition-all text-left group">
     <div className={`p-4 rounded-2xl ${color} text-white shrink-0 group-hover:scale-110 transition-transform shadow-lg`}><Icon size={22} /></div>
     <div className="flex-1 min-w-0">
-      <h4 className="font-black text-[#081437] text-sm uppercase tracking-wider">{label}</h4>
+      <h4 className="font-black text-[#132659] text-sm uppercase tracking-wider">{label}</h4>
       <p className="text-[10px] text-slate-500 mt-1 leading-relaxed font-bold uppercase tracking-tight opacity-70">{desc}</p>
     </div>
     <ArrowRight size={18} className="text-slate-200 group-hover:text-blue-600 group-hover:translate-x-1 transition-all mt-1" />

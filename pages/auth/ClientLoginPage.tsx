@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/authContext.tsx';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +10,8 @@ import { CheckCircle2 } from 'lucide-react';
 import { LoginHero } from '../../components/features/auth/login/LoginHero.tsx';
 import { LoginForm } from '../../components/features/auth/login/LoginForm.tsx';
 import { LoginLanguageSelector } from '../../components/features/auth/login/LoginLanguageSelector.tsx';
+
+const LOGO_URL = "https://wtydnzqianhahiiasows.supabase.co/storage/v1/object/public/public_assets/hero/logo.png";
 
 const ClientLoginPage: React.FC = () => {
   const { login, isLoading, user } = useAuth();
@@ -53,7 +56,7 @@ const ClientLoginPage: React.FC = () => {
                 <div className="absolute inset-0 bg-emerald-500/20 blur-2xl rounded-full animate-pulse" />
                 <CheckCircle2 className="text-emerald-500 relative z-10 animate-bounce" size={64} />
               </div>
-              <p className="text-sm font-bold text-white uppercase tracking-[4px] animate-in slide-in-from-bottom-2">
+              <p className="text-sm font-black text-white uppercase tracking-[4px] animate-in slide-in-from-bottom-2">
                 {t('login.successTitle')}
               </p>
               <p className="text-[10px] text-slate-400 uppercase font-medium tracking-[2px] mt-3 animate-in fade-in duration-1000 delay-300">
@@ -81,7 +84,11 @@ const ClientLoginPage: React.FC = () => {
         <div className="w-full max-w-[340px] xl:max-w-[360px] animate-in zoom-in-95 duration-700 py-4">
           <div className="space-y-6 md:space-y-8">
             <div className="flex justify-center lg:hidden mb-6">
-               <img src="https://wtydnzqianhahiiasows.supabase.co/storage/v1/object/public/public_assets/hero/logo.png" alt="Aços Vital" className="h-8 object-contain" />
+               <img 
+                src={LOGO_URL} 
+                alt="Aços Vital" 
+                className="h-12 object-contain" 
+               />
             </div>
 
             <LoginForm 
@@ -91,7 +98,7 @@ const ClientLoginPage: React.FC = () => {
             />
 
             <footer className="pt-6 border-t border-slate-100 text-center relative">
-               <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-[2px]">{t('login.accessManagedByVital')}</p>
+               <p className="text-[9px] font-black text-slate-400 uppercase tracking-[2px]">{t('login.accessManagedByVital')}</p>
             </footer>
           </div>
         </div>

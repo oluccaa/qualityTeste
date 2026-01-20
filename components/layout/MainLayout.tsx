@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/authContext.tsx';
 import { SidebarQuality } from './SidebarQuality.tsx';
 import { SidebarAdmin } from './SidebarAdmin.tsx';
+import { SidebarClient } from './SidebarClient.tsx';
 import { Header } from './Header.tsx';
 import { MobileNavigation } from './MobileNavigation.tsx';
 import { CookieBanner } from '../common/CookieBanner.tsx';
@@ -19,8 +20,8 @@ interface LayoutProps {
 }
 
 /**
- * MainLayout (Internal Viewport) - Versão Ultra-Full Height
- * Focada em dashboards industriais de alta densidade.
+ * MainLayout (Internal Viewport)
+ * Orquestrador de sidebars e layout mestre focado em clareza visual.
  */
 export const Layout: React.FC<LayoutProps> = ({ children, title }) => {
   const { user, logout, systemStatus: authSystemStatus } = useAuth();
@@ -49,14 +50,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, title }) => {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
+    <div className="flex h-screen bg-slate-50/40 overflow-hidden font-sans">
       <CookieBanner />
 
-      {role === UserRole.ADMIN ? (
-        <SidebarAdmin {...commonSidebarProps} />
-      ) : (
-        <SidebarQuality {...commonSidebarProps} />
-      )}
+      {/* Seleção rigorosa de Sidebar por Role - Design Unificado Light */}
+      {role === UserRole.ADMIN && <SidebarAdmin {...commonSidebarProps} />}
+      {role === UserRole.QUALITY && <SidebarQuality {...commonSidebarProps} />}
+      {role === UserRole.CLIENT && <SidebarClient {...commonSidebarProps} />}
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <MaintenanceBanner status={system.status} isAdmin={role === UserRole.ADMIN} />
@@ -71,8 +71,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, title }) => {
           onNavigateBack={handleNavigateBack}
         />
 
-        <main className="flex-1 flex flex-col min-h-0 bg-slate-50 p-4 md:p-6 relative">
-          <div className="w-full h-full mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500 flex flex-col min-h-0">
+        <main className="flex-1 flex flex-col min-h-0 bg-transparent p-4 md:p-8 relative overflow-y-auto custom-scrollbar">
+          <div className="w-full max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-3 duration-700 flex flex-col min-h-0">
             {children}
           </div>
         </main>

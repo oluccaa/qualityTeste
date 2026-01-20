@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronRight, AlertCircle, CheckCircle2, User, Loader2 } from 'lucide-react';
@@ -91,10 +92,10 @@ const ClientRow: React.FC<{ client: ClientOrganization; onSelect: () => void }> 
 const ClientCard: React.FC<{ client: ClientOrganization; onSelect: () => void }> = ({ client, onSelect }) => (
   <div onClick={onSelect} className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-500/30 transition-all cursor-pointer group relative overflow-hidden h-fit">
     <div className="relative z-10">
-      <div className="w-12 h-12 rounded-2xl bg-[#081437] text-white flex items-center justify-center text-lg font-black mb-4 shadow-lg group-hover:scale-105 transition-transform">
+      <div className="w-12 h-12 rounded-2xl bg-[#132659] text-white flex items-center justify-center text-lg font-black mb-4 shadow-lg group-hover:scale-105 transition-transform">
         {client.name?.[0] || '?'}
       </div>
-      <h4 className="text-sm font-black text-[#081437] leading-tight truncate">{client.name}</h4>
+      <h4 className="text-sm font-black text-[#132659] leading-tight truncate">{client.name}</h4>
       <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1 mb-4">{client.cnpj}</p>
       
       <div className="flex items-center justify-between pt-4 border-t border-slate-50">

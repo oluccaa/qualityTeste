@@ -85,7 +85,8 @@ const FilePreviewPage: React.FC = () => {
   };
 
   const role = normalizeRole(user?.role);
-  const canAudit = role === UserRole.QUALITY || role === UserRole.ADMIN;
+  // O botão de auditoria agora aparece para analistas, administradores e clientes.
+  const canAudit = role === UserRole.QUALITY || role === UserRole.ADMIN || role === UserRole.CLIENT;
 
   return (
     <div className="h-screen w-screen bg-[#020617] flex flex-col overflow-hidden font-sans">

@@ -1,3 +1,4 @@
+
 import React, { Suspense } from 'react';
 import { Layout } from '../../components/layout/MainLayout.tsx';
 import { useAdminPage } from '../../components/features/admin/hooks/useAdminPage.ts';
@@ -26,7 +27,7 @@ const AdminConsole: React.FC = () => {
         
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
              <div className="flex items-center gap-4">
-                <div className="p-3 bg-slate-900 text-white rounded-2xl shadow-xl">
+                <div className="p-3 bg-white text-slate-900 rounded-2xl shadow-sm border border-slate-200">
                     <Terminal size={24} />
                 </div>
                 <div>

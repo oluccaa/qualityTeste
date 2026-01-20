@@ -16,6 +16,7 @@ const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard.tsx
 const AdminConsole = React.lazy(() => import('./pages/admin/AdminConsole.tsx'));
 const QualityDashboard = React.lazy(() => import('./pages/quality/QualityDashboard.tsx'));
 const QualityPortfolio = React.lazy(() => import('./pages/quality/QualityPortfolio.tsx'));
+const QualityMonitor = React.lazy(() => import('./pages/quality/QualityMonitor.tsx'));
 const QualityAuditHistory = React.lazy(() => import('./pages/quality/QualityAuditHistory.tsx'));
 const QualityUserManagement = React.lazy(() => import('./pages/quality/QualityUserManagement.tsx'));
 const QualityExplorer = React.lazy(() => import('./pages/quality/QualityExplorer.tsx'));
@@ -26,14 +27,14 @@ const SettingsPage = React.lazy(() => import('./pages/shared/SettingsPage.tsx'))
 const NotFoundPage = React.lazy(() => import('./pages/shared/NotFoundPage.tsx'));
 
 const PageLoader = ({ message = "Carregando...", onRetry }: { message?: string; onRetry?: () => void }) => (
-  <div className="h-screen w-screen bg-[#081437] flex flex-col items-center justify-center text-white font-sans">
+  <div className="h-screen w-screen bg-[#132659] flex flex-col items-center justify-center text-white font-sans">
       <div className="relative mb-8">
         <Loader2 size={48} className="animate-spin text-blue-500" />
         <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full animate-pulse" />
       </div>
       <p className="text-[10px] font-black text-slate-400 tracking-[6px] uppercase animate-pulse mb-4 text-center px-6">{message}</p>
       {onRetry && (
-        <button onClick={onRetry} className="flex items-center gap-2 px-6 py-3 bg-white text-[#081437] rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95 shadow-lg">
+        <button onClick={onRetry} className="flex items-center gap-2 px-6 py-3 bg-white text-[#132659] rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95 shadow-lg">
           <RefreshCw size={16} /> Tentar Novamente
         </button>
       )}
@@ -65,6 +66,11 @@ export const AppRoutes: React.FC = () => {
             <Route element={<AuthMiddleware />}>
                 <Route path="/settings" element={<SettingsPage />} /> 
                 <Route path="/preview/:fileId" element={<FilePreviewPage />} />
+                
+                {/* Rota de Inspeção Compartilhada (Auditoria) */}
+                <Route element={<RoleMiddleware allowedRoles={[UserRole.QUALITY, UserRole.CLIENT]} />}>
+                    <Route path="/quality/inspection/:fileId" element={<FileInspection />} />
+                </Route>
 
                 {/* ADMIN EXCLUSIVE */}
                 <Route element={<RoleMiddleware allowedRoles={[UserRole.ADMIN]} />}>
@@ -75,11 +81,11 @@ export const AppRoutes: React.FC = () => {
                 {/* QUALITY & ADMIN */}
                 <Route element={<RoleMiddleware allowedRoles={[UserRole.QUALITY]} />}>
                     <Route path="/quality/dashboard" element={<QualityDashboard />} />
+                    <Route path="/quality/monitor" element={<QualityMonitor />} />
                     <Route path="/quality/portfolio" element={<QualityPortfolio />} />
                     <Route path="/quality/users" element={<QualityUserManagement />} />
                     <Route path="/quality/explorer" element={<QualityExplorer />} />
                     <Route path="/quality/audit" element={<QualityAuditHistory />} />
-                    <Route path="/quality/inspection/:fileId" element={<FileInspection />} />
                 </Route>
 
                 {/* CLIENT EXCLUSIVE */}

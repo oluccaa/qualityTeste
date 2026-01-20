@@ -28,6 +28,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
   const currentStep = metadata?.currentStep || 1;
   const isAnalyst = userRole === UserRole.QUALITY || userRole === UserRole.ADMIN;
   const isClient = userRole === UserRole.CLIENT;
+  const isQuality = isAnalyst;
 
   const createSignature = (action: string): AuditSignature => ({
     userId: 'system_protocol',
@@ -54,7 +55,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
         signatures: newSignatures as any,
         status: nextStep === 7 ? QualityStatus.APPROVED : (status === 'REJECTED' ? QualityStatus.REJECTED : metadata?.status)
       });
-      showToast(`Etapa ${step} finalizada.`, "success");
+      showToast(`Etapa finalizada com sucesso.`, "success");
     } catch (e) {
       showToast("Erro na sincronização.", "error");
     } finally {
@@ -68,7 +69,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
         <StepCard 
           step={1} 
           title="Liberação Técnica" 
-          desc="Protocolo inicial: Validação da integridade documental."
+          desc="Analista Vital valida a integridade documental e inicia o workflow."
           active={currentStep === 1}
           completed={currentStep > 1}
           signature={metadata?.signatures?.step1_release}
@@ -77,17 +78,18 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
             <button 
               disabled={isSyncing}
               onClick={() => handleAction(1, 'APPROVED', { status: QualityStatus.SENT })}
-              className="px-6 py-3 bg-[#081437] text-white rounded-lg font-black text-[9px] uppercase tracking-[2px] shadow-lg hover:bg-blue-900 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
+              className="px-6 py-3 bg-[#132659] text-white rounded-lg font-black text-[9px] uppercase tracking-[2px] shadow-lg hover:bg-blue-900 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
             >
-              {isSyncing ? <Activity className="animate-spin" size={14}/> : <><Key size={14} className="text-blue-400" /> Iniciar Liberação</>}
+              {isSyncing ? <Activity className="animate-spin" size={14}/> : <><Key size={14} className="text-blue-400" /> Autorizar Início</>}
             </button>
           )}
+          {isClient && currentStep === 1 && <WaitBadge label="Aguardando Liberação da Aços Vital" />}
         </StepCard>
 
         <StepCard 
           step={2} 
-          title="Consistência de Dados" 
-          desc="Conferência de normas e especificações pelo parceiro."
+          title="Conferência de Dados" 
+          desc="O Parceiro valida se os dados do certificado batem com o pedido."
           active={currentStep === 2}
           completed={currentStep > 2}
           status={metadata?.documentalStatus}
@@ -95,17 +97,17 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
         >
           {isClient && currentStep === 2 && (
             <div className="flex gap-3 animate-in slide-in-from-bottom-2">
-               <button onClick={() => handleAction(2, 'APPROVED', { documentalStatus: 'APPROVED' })} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 active:scale-95">Aprovar</button>
-               <button onClick={() => handleAction(2, 'REJECTED', { documentalStatus: 'REJECTED' })} className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-red-700 active:scale-95">Rejeitar</button>
+               <button onClick={() => handleAction(2, 'APPROVED', { documentalStatus: 'APPROVED' })} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 active:scale-95 transition-all shadow-md">Confirmar Dados</button>
+               <button onClick={() => handleAction(2, 'REJECTED', { documentalStatus: 'REJECTED' })} className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-red-700 active:scale-95 transition-all shadow-md">Contestar</button>
             </div>
           )}
-          {!isClient && currentStep === 2 && <WaitBadge label="Aguardando Parceiro" />}
+          {isAnalyst && currentStep === 2 && <WaitBadge label="Aguardando Conferência do Parceiro" />}
         </StepCard>
 
         <StepCard 
           step={3} 
-          title="Verificação de Lote" 
-          desc="Inspeção física e integridade do material no recebimento."
+          title="Vistoria Física" 
+          desc="O Parceiro inspeciona as etiquetas e o estado do material."
           active={currentStep === 3}
           completed={currentStep > 3}
           status={metadata?.physicalStatus}
@@ -113,17 +115,17 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
         >
           {isClient && currentStep === 3 && (
             <div className="flex gap-3 animate-in slide-in-from-bottom-2">
-               <button onClick={() => handleAction(3, 'APPROVED', { physicalStatus: 'APPROVED' })} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest">Aprovar</button>
-               <button onClick={() => handleAction(3, 'REJECTED', { physicalStatus: 'REJECTED' })} className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest">Rejeitar</button>
+               <button onClick={() => handleAction(3, 'APPROVED', { physicalStatus: 'APPROVED' })} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-md">Lote em Conformidade</button>
+               <button onClick={() => handleAction(3, 'REJECTED', { physicalStatus: 'REJECTED' })} className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-red-700 transition-all shadow-md">Material Divergente</button>
             </div>
           )}
-          {!isClient && currentStep === 3 && <WaitBadge label="Aguardando Parceiro" />}
+          {isAnalyst && currentStep === 3 && <WaitBadge label="Aguardando Vistoria do Parceiro" />}
         </StepCard>
 
         <StepCard 
           step={4} 
-          title="Arbitragem Técnica" 
-          desc="Análise e mediação de divergências técnicas."
+          title="Arbitragem de Divergência" 
+          desc="Analista Vital avalia as contestações do parceiro."
           active={currentStep === 4}
           completed={currentStep > 4}
           signature={metadata?.signatures?.step4_contestation}
@@ -132,7 +134,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
             <div className="space-y-4 animate-in slide-in-from-bottom-2 max-w-xl">
                <textarea 
                   className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs min-h-[100px] outline-none focus:border-blue-400 transition-all font-medium"
-                  placeholder="Justificativa técnica..."
+                  placeholder="Explique tecnicamente a resolução da divergência..."
                   value={contestationInput}
                   onChange={e => setContestationInput(e.target.value)}
                />
@@ -141,64 +143,68 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                   onClick={() => handleAction(4, 'APPROVED', { analystContestationNote: contestationInput })}
                   className="px-8 py-3 bg-orange-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest shadow-lg hover:bg-orange-700 transition-all active:scale-95 disabled:opacity-50"
                >
-                  Enviar Mediação
+                  Publicar Parecer Técnico
                </button>
             </div>
           )}
-          {!isAnalyst && currentStep === 4 && <WaitBadge label="Em Elaboração Técnica" icon={Activity} />}
+          {isClient && currentStep === 4 && <WaitBadge label="Sua contestação está sendo analisada pela Qualidade Vital" icon={Activity} />}
+          {!isAnalyst && !isClient && currentStep === 4 && <WaitBadge label="Em Arbitragem" icon={Activity} />}
         </StepCard>
 
         <StepCard 
           step={5} 
-          title="Veredito de Mediação" 
-          desc="Parecer final do parceiro sobre a arbitragem."
+          title="Parecer Final do Parceiro" 
+          desc="O Parceiro avalia a resolução técnica proposta."
           active={currentStep === 5}
           completed={currentStep > 5}
           signature={metadata?.signatures?.step5_mediation_review}
         >
           {metadata?.analystContestationNote && (
-              <div className="mb-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100 italic text-xs text-blue-800 shadow-inner max-w-xl">
+              <div className="mb-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100 italic text-xs text-blue-800 shadow-inner max-w-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-2 opacity-5 text-blue-900"><MessageSquare size={40} /></div>
                   <p className="font-black uppercase mb-1 not-italic text-blue-900 text-[9px] tracking-widest">Parecer Vital:</p>
                   "{metadata.analystContestationNote}"
               </div>
           )}
           {isClient && currentStep === 5 && (
             <div className="flex gap-3 animate-in slide-in-from-bottom-2">
-               <button onClick={() => handleAction(5, 'APPROVED', { mediationStatus: 'APPROVED' })} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700">Aceitar</button>
-               <button onClick={() => handleAction(5, 'REJECTED', { mediationStatus: 'REJECTED', status: QualityStatus.REJECTED })} className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-red-700">Manter Recusa</button>
+               <button onClick={() => handleAction(5, 'APPROVED', { mediationStatus: 'APPROVED' })} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 shadow-md">Aceitar Solução</button>
+               <button onClick={() => handleAction(5, 'REJECTED', { mediationStatus: 'REJECTED', status: QualityStatus.REJECTED })} className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-red-700 shadow-md">Manter Divergência</button>
             </div>
           )}
+          {isAnalyst && currentStep === 5 && <WaitBadge label="Aguardando Aceite do Parceiro sobre o Parecer" />}
         </StepCard>
 
         <StepCard 
           step={6} 
-          title="Registro Forense" 
-          desc="Assinatura digital e consolidação de logs imutáveis."
+          title="Consolidação Ledger" 
+          desc="Registro imutável da transação de qualidade."
           active={currentStep === 6}
           completed={currentStep > 6}
           signature={metadata?.signatures?.step6_system_log}
         >
           {isAnalyst && currentStep === 6 && (
-            <button onClick={() => handleAction(6, 'APPROVED', {})} className="px-8 py-3 bg-[#081437] text-white rounded-lg font-black text-[9px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">Consolidar Registro</button>
+            <button onClick={() => handleAction(6, 'APPROVED', {})} className="px-8 py-3 bg-[#132659] text-white rounded-lg font-black text-[9px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">Consolidar Registro</button>
           )}
+          {isClient && currentStep === 6 && <WaitBadge label="Sincronizando registro final no servidor seguro" />}
         </StepCard>
 
         <StepCard 
           step={7} 
-          title="Encerramento" 
-          desc="Arquivamento técnico e integração ao SGQ Central."
+          title="Certificação Concluída" 
+          desc="O dossiê agora é um registro auditado e certificado."
           active={currentStep === 7}
           completed={currentStep > 7}
           signature={metadata?.signatures?.step7_final_verdict}
         >
           {currentStep === 7 && (
-              <div className="p-6 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 flex items-center gap-6 shadow-inner max-w-xl">
-                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-emerald-500 shadow-sm border border-emerald-100">
+              <div className={`p-6 ${isQuality ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'} rounded-2xl border flex items-center gap-6 shadow-inner max-w-xl animate-in zoom-in-95`}>
+                  <div className={`w-12 h-12 bg-white rounded-xl flex items-center justify-center ${isQuality ? 'text-blue-500' : 'text-emerald-500'} shadow-sm`}>
                     <ShieldCheck size={28} />
                   </div>
                   <div>
-                    <p className="text-sm font-black uppercase tracking-tight">Dossier Certificado</p>
-                    <p className="text-[9px] font-bold opacity-60 uppercase tracking-widest mt-0.5">Operação Finalizada com Sucesso</p>
+                    <p className="text-sm font-black uppercase tracking-tight">Sessão Vital Certificada</p>
+                    <p className="text-[9px] font-bold opacity-60 uppercase tracking-widest mt-0.5">Ativo validado com sucesso.</p>
                   </div>
               </div>
           )}
@@ -208,9 +214,9 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
 };
 
 const WaitBadge = ({ label, icon: Icon = Clock }: { label: string; icon?: any }) => (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-400 w-fit">
+    <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-400 w-fit animate-in fade-in slide-in-from-left-2">
         <Icon size={12} className="animate-pulse" />
-        <p className="text-[8px] font-black uppercase tracking-widest">{label}</p>
+        <p className="text-[8px] font-black uppercase tracking-widest leading-tight">{label}</p>
     </div>
 );
 
@@ -219,13 +225,13 @@ const StepCard = ({ step, title, desc, active, completed, signature, status, chi
 
   return (
     <div className={`p-6 rounded-2xl border transition-all duration-500 relative overflow-hidden group
-      ${active ? 'bg-white border-blue-400 shadow-md ring-1 ring-blue-400/10' : 
+      ${active ? 'bg-white border-blue-400 shadow-md ring-1 ring-blue-400/5' : 
         completed ? 'bg-white border-slate-100 opacity-80' : 'bg-transparent border-slate-100 opacity-30'}`}>
       
       <div className="flex items-start gap-6 relative z-10">
         <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-700
           ${completed ? 'bg-emerald-500 border-emerald-400 text-white shadow-sm' : 
-            active ? 'bg-[#081437] border-slate-800 text-white shadow-lg' : 
+            active ? 'bg-[#132659] border-slate-800 text-white shadow-lg' : 
             'bg-slate-100 border-slate-200 text-slate-400'}`}>
           {completed ? <Check size={24} strokeWidth={4} /> : <span className="font-black text-sm font-mono">{step}</span>}
         </div>
@@ -248,16 +254,6 @@ const StepCard = ({ step, title, desc, active, completed, signature, status, chi
 
           {children && <div className="mt-5 animate-in fade-in slide-in-from-bottom-2 duration-700">{children}</div>}
         </div>
-      </div>
-
-      <div className="absolute -right-6 -bottom-6 opacity-[0.015] text-slate-950 pointer-events-none transition-all duration-1000 group-hover:scale-110">
-         {step === 1 && <Key size={120} />}
-         {step === 2 && <FileText size={120} />}
-         {step === 3 && <FlaskConical size={120} />}
-         {step === 4 && <Activity size={120} />}
-         {step === 5 && <Search size={120} />}
-         {step === 6 && <Activity size={120} />}
-         {step === 7 && <ClipboardCheck size={120} />}
       </div>
     </div>
   );

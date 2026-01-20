@@ -31,7 +31,7 @@ export const PartnerDashboardView: React.FC = () => {
           <div className="relative z-10">
             <div className="flex items-center gap-4 mb-4">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${
-                hasPending ? 'bg-white text-orange-600' : 'bg-slate-900 text-white'
+                hasPending ? 'bg-white text-orange-600' : 'bg-[#132659] text-white'
               }`}>
                 <ClipboardCheck size={24} />
               </div>
@@ -64,7 +64,7 @@ export const PartnerDashboardView: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-[#081437] p-6 rounded-[2.5rem] text-white flex flex-col justify-between shadow-2xl relative overflow-hidden">
+        <div className="bg-[#132659] p-6 rounded-[2.5rem] text-white flex flex-col justify-between shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl" />
           <div className="flex items-center gap-4 mb-4 relative z-10">
             <div className="w-12 h-12 bg-white/10 text-blue-400 rounded-2xl flex items-center justify-center border border-white/5 shadow-lg">
@@ -79,7 +79,6 @@ export const PartnerDashboardView: React.FC = () => {
         </div>
       </div>
 
-      {/* Seção de Arquivos Recentes */}
       <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
         <header className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -101,7 +100,7 @@ export const PartnerDashboardView: React.FC = () => {
               className="flex items-center justify-between p-6 hover:bg-blue-50/30 transition-all group cursor-pointer"
             >
               <div className="flex items-center gap-5">
-                <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center border border-slate-100 group-hover:bg-[#081437] group-hover:text-blue-400 transition-all shadow-sm">
+                <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center border border-slate-100 group-hover:bg-[#132659] group-hover:text-blue-400 transition-all shadow-sm">
                   <FileText size={24} />
                 </div>
                 <div>

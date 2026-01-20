@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Layout } from '../../components/layout/MainLayout.tsx';
 import { AdminUsers } from '../../components/features/admin/views/AdminUsers.tsx';
@@ -18,7 +19,7 @@ const QualityUserManagement: React.FC = () => {
 
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0">
             <div className="flex items-center gap-4">
-                <div className="p-3 bg-[#081437] text-blue-400 rounded-2xl shadow-xl">
+                <div className="p-3 bg-white text-blue-600 rounded-2xl shadow-sm border border-slate-200">
                     <UserCheck size={24} />
                 </div>
                 <div>

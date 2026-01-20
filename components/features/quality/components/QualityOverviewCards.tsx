@@ -1,11 +1,12 @@
 
 import React, { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Building2, FileWarning, ShieldCheck, Activity, ArrowUpRight, LucideIcon } from 'lucide-react';
 
 interface QualityOverviewCardsProps {
   totalClients: number;
   totalPendingDocs: number;
+  complianceRate: string;
+  totalRejected: number;
   onChangeView: (view: string) => void;
 }
 
@@ -21,26 +22,30 @@ interface KpiConfig {
     accent: string;
 }
 
-export const QualityOverviewCards: React.FC<QualityOverviewCardsProps> = ({ totalClients, totalPendingDocs, onChangeView }) => {
-  const { t } = useTranslation();
-
+export const QualityOverviewCards: React.FC<QualityOverviewCardsProps> = ({ 
+  totalClients, 
+  totalPendingDocs, 
+  complianceRate, 
+  totalRejected, 
+  onChangeView 
+}) => {
   const cardConfig: KpiConfig[] = useMemo(() => [
     {
       id: 'clients',
-      label: t('quality.activePortfolio'),
+      label: "Portfólio Ativo",
       value: totalClients,
       subtext: "Empresas Monitoradas",
       icon: Building2,
-      color: "bg-[#081437]",
+      color: "bg-[#132659]",
       shadow: "shadow-slate-900/5",
       view: 'clients',
       accent: "text-blue-400"
     },
     {
       id: 'pending',
-      label: t('quality.pendingDocs'),
+      label: "Urgência Técnica",
       value: totalPendingDocs,
-      subtext: "Urgência de Inspeção",
+      subtext: "Aguardando Triagem",
       icon: FileWarning,
       color: "bg-[#b23c0e]",
       shadow: "shadow-[#b23c0e]/10",
@@ -49,9 +54,9 @@ export const QualityOverviewCards: React.FC<QualityOverviewCardsProps> = ({ tota
     },
     {
       id: 'compliance',
-      label: "Qualidade de Dados",
-      value: "94.2%",
-      subtext: t('quality.complianceISO'),
+      label: "Índice de Qualidade",
+      value: `${complianceRate}%`,
+      subtext: "Conformidade Global",
       icon: ShieldCheck,
       color: "bg-emerald-600",
       shadow: "shadow-emerald-500/10",
@@ -60,16 +65,16 @@ export const QualityOverviewCards: React.FC<QualityOverviewCardsProps> = ({ tota
     },
     {
       id: 'alerts',
-      label: "Eventos Auditados",
-      value: 12,
-      subtext: "Logs nas últimas 24h",
+      label: "Contestações Ativas",
+      value: totalRejected,
+      subtext: "Exige Intervenção",
       icon: Activity,
-      color: "bg-slate-600",
+      color: totalRejected > 0 ? "bg-red-600" : "bg-slate-600",
       shadow: "shadow-slate-500/5",
-      view: 'audit-log',
+      view: 'feedback',
       accent: "text-white"
     }
-  ], [totalClients, totalPendingDocs, t]);
+  ], [totalClients, totalPendingDocs, complianceRate, totalRejected]);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -102,8 +107,8 @@ const KpiCard: React.FC<{ card: KpiConfig; onClick: () => void }> = ({ card, onC
 
             <div className="relative z-10">
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">{card.label}</p>
-              <h3 className="text-3xl font-bold text-[#081437] tracking-tight">{card.value}</h3>
-              <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide mt-1 opacity-80">{card.subtext}</p>
+              <h3 className="text-3xl font-black text-[#132659] tracking-tight">{card.value}</h3>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide mt-1 opacity-80">{card.subtext}</p>
             </div>
         </button>
     );

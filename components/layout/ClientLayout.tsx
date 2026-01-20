@@ -53,6 +53,7 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({ children, title, act
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <MaintenanceBanner status={system.status} isAdmin={role === UserRole.ADMIN} />
         
+        {/* Fix: Removed unsupported 'variant' prop to resolve TypeScript error as HeaderProps does not define it */}
         <Header 
           title={title} 
           user={user} 
@@ -61,7 +62,6 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({ children, title, act
           onLogout={logout}
           onOpenMobileMenu={layout.openMobileMenu} 
           onNavigateBack={handleNavigateBack} 
-          variant="blue"
         />
 
         <main className="flex-1 overflow-hidden bg-slate-50 p-4 md:p-6 relative flex flex-col">

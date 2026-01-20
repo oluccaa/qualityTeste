@@ -49,7 +49,13 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
 
   useEffect(() => {
     const resolveInitialFolder = async () => {
-      if (orgId && orgId !== 'global' && !currentFolderId) {
+      // Se for global, não precisamos resolver pasta raiz de organização
+      if (orgId === 'global') {
+        setIsReady(true);
+        return;
+      }
+
+      if (orgId && !currentFolderId) {
         setIsReady(false);
         const { data } = await supabase.from('files').select('id').eq('owner_id', orgId).is('parent_id', null).maybeSingle();
         if (data?.id) {
@@ -96,7 +102,6 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
     if (file.type === FileType.FOLDER) {
       handleNavigate(file.id);
     } else {
-      // NOVA LÓGICA: Navega para a página de preview
       navigate(`/preview/${file.id}`);
     }
   };

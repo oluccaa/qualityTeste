@@ -1,3 +1,4 @@
+
 import { 
   Users, 
   ShieldCheck, 
@@ -10,7 +11,8 @@ import {
   Settings,
   LogOut,
   Database,
-  Terminal
+  Terminal,
+  ClipboardList
 } from 'lucide-react';
 import { UserRole } from '../types/index.ts';
 
@@ -41,7 +43,8 @@ export const getAdminMenuConfig = (t: any): NavSection[] => [
   {
     title: "Auditoria Industrial",
     items: [
-      { label: "Monitor de Carteira", path: '/quality/portfolio', icon: Building2 },
+      { label: "Monitor de Carteira", path: '/quality/monitor', icon: ClipboardList },
+      { label: "Gestão de Clientes", path: '/quality/portfolio', icon: Building2 },
       { label: "Logs Forenses", path: '/quality/audit', icon: History }
     ]
   }
@@ -55,7 +58,8 @@ export const getQualityMenuConfig = (t: any): NavSection[] => [
     title: "Operação Técnica",
     items: [
       { label: "Visão Geral", path: '/quality/dashboard', icon: LayoutDashboard, exact: true },
-      { label: "Gestão de Carteira", path: '/quality/portfolio', icon: Building2 },
+      { label: "Monitor de Carteira", path: '/quality/monitor', icon: ClipboardList },
+      { label: "Gestão de Clientes", path: '/quality/portfolio', icon: Building2 },
     ]
   },
   {
@@ -104,6 +108,7 @@ export const getBottomNavItems = (user: any, t: any): NavItem[] => {
   if (role === UserRole.ADMIN) {
     return [
       { label: "Home", path: '/admin/dashboard', icon: LayoutDashboard },
+      { label: "Monitor", path: '/quality/monitor', icon: ClipboardList },
       { label: "Consola", path: '/admin/console', icon: Terminal },
     ];
   }
@@ -111,7 +116,8 @@ export const getBottomNavItems = (user: any, t: any): NavItem[] => {
   if (role === UserRole.QUALITY) {
     return [
       { label: "Home", path: '/quality/dashboard', icon: LayoutDashboard },
-      { label: "Carteira", path: '/quality/portfolio', icon: Building2 },
+      { label: "Monitor", path: '/quality/monitor', icon: ClipboardList },
+      { label: "Clientes", path: '/quality/portfolio', icon: Building2 },
     ];
   }
   
