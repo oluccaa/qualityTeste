@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
 import { 
-  Check, ShieldCheck, Clock, Lock, FileText, Ruler, 
-  AlertCircle, FileCheck, Database, Key, ArrowRight,
-  RefreshCcw, Upload, History, User, BadgeCheck, FileWarning
+  Check, User, Key, MessageSquare, Send, 
+  ClipboardCheck, Activity, Search, FlaskConical,
+  Clock, ShieldAlert, FileText, ShieldCheck
 } from 'lucide-react';
 import { SteelBatchMetadata, QualityStatus, UserRole, AuditSignature } from '../../../../types/index.ts';
 import { useToast } from '../../../../context/notificationContext.tsx';
@@ -19,246 +19,246 @@ interface AuditWorkflowProps {
 }
 
 export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ 
-    metadata, userRole, userName, fileId, onUpdate, onUploadReplacement 
+    metadata, userRole, userName, onUpdate 
 }) => {
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState<'workflow' | 'history' | 'remediation'>('workflow');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [contestationInput, setContestationInput] = useState('');
   
-  const currentStep = metadata?.currentStep || 0;
+  const currentStep = metadata?.currentStep || 1;
   const isAnalyst = userRole === UserRole.QUALITY || userRole === UserRole.ADMIN;
   const isClient = userRole === UserRole.CLIENT;
 
   const createSignature = (action: string): AuditSignature => ({
-    userId: 'system', // No app real viria do user.id
+    userId: 'system_protocol',
     userName: userName,
     userRole: userRole,
     timestamp: new Date().toISOString(),
     action: action
   });
 
-  const handleStepAction = async (step: number, updates: Partial<SteelBatchMetadata>, actionName: string) => {
+  const handleAction = async (step: number, status: 'APPROVED' | 'REJECTED', updates: Partial<SteelBatchMetadata>) => {
     setIsSyncing(true);
     try {
       const sigKey = `step${step}_signature` as any;
-      const newSignatures = { ...metadata?.signatures, [sigKey]: createSignature(actionName) };
+      const nextStep = status === 'APPROVED' ? step + 1 : 4; 
+      
+      const newSignatures = { 
+        ...metadata?.signatures, 
+        [sigKey]: createSignature(`${status}_STEP_${step}`) 
+      };
       
       await onUpdate({
         ...updates,
-        currentStep: step + 1,
-        signatures: newSignatures as any
+        currentStep: nextStep,
+        signatures: newSignatures as any,
+        status: nextStep === 7 ? QualityStatus.APPROVED : (status === 'REJECTED' ? QualityStatus.REJECTED : metadata?.status)
       });
-      showToast(`Etapa ${step} concluída e assinada digitalmente.`, "success");
+      showToast(`Etapa ${step} finalizada.`, "success");
     } catch (e) {
-      showToast("Falha ao autenticar assinatura no ledger.", "error");
+      showToast("Erro na sincronização.", "error");
     } finally {
       setIsSyncing(false);
+      setContestationInput('');
     }
   };
 
   return (
-    <div className="flex flex-col h-full bg-white font-sans">
-      {/* Tab Navigation - Premium Design */}
-      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl mb-8 shrink-0">
-         <TabButton active={activeTab === 'workflow'} onClick={() => setActiveTab('workflow')} icon={ShieldCheck} label="Workflow" />
-         <TabButton active={activeTab === 'remediation'} onClick={() => setActiveTab('remediation')} icon={FileWarning} label="RNC / Guias" />
-         <TabButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={History} label="Versões" />
-      </div>
-
-      <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
-        {activeTab === 'workflow' && (
-          <div className="space-y-10 pb-10">
-            {/* Step 1: Liberação */}
-            <StepConnector active={currentStep >= 1} />
-            <StepItem 
-              step={1} 
-              title="Liberação Técnica Vital" 
-              desc="Validação inicial do laudo pelo laboratório Aços Vital."
-              signature={metadata?.signatures?.step1_release}
-              status={currentStep > 1 ? 'completed' : currentStep === 1 ? 'active' : 'pending'}
+    <div className="space-y-4 pb-20">
+        <StepCard 
+          step={1} 
+          title="Liberação Técnica" 
+          desc="Protocolo inicial: Validação da integridade documental."
+          active={currentStep === 1}
+          completed={currentStep > 1}
+          signature={metadata?.signatures?.step1_release}
+        >
+          {isAnalyst && currentStep === 1 && (
+            <button 
+              disabled={isSyncing}
+              onClick={() => handleAction(1, 'APPROVED', { status: QualityStatus.SENT })}
+              className="px-6 py-3 bg-[#081437] text-white rounded-lg font-black text-[9px] uppercase tracking-[2px] shadow-lg hover:bg-blue-900 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
             >
-              {currentStep === 1 && isAnalyst && (
-                <button 
-                  onClick={() => handleStepAction(1, { status: QualityStatus.SENT }, "LIBERAÇÃO_TECNICA")}
-                  className="w-full py-4 bg-[#081437] text-white rounded-xl font-black text-[10px] uppercase tracking-[3px] shadow-xl hover:bg-blue-900 transition-all flex items-center justify-center gap-3"
-                >
-                  <Key size={14} className="text-blue-400" /> Assinar Digitalmente
-                </button>
-              )}
-            </StepItem>
+              {isSyncing ? <Activity className="animate-spin" size={14}/> : <><Key size={14} className="text-blue-400" /> Iniciar Liberação</>}
+            </button>
+          )}
+        </StepCard>
 
-            {/* Step 2: Conferência Cliente */}
-            <StepConnector active={currentStep >= 2} />
-            <StepItem 
-              step={2} 
-              title="Conferência de Recebimento" 
-              desc="O parceiro deve validar a integridade documental e física."
-              signature={metadata?.signatures?.step2_client_check}
-              status={currentStep > 2 ? 'completed' : currentStep === 2 ? 'active' : 'pending'}
-            >
-              {currentStep === 2 && isClient && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                     <button onClick={() => handleStepAction(2, { status: QualityStatus.APPROVED }, "ACEITE_CLIENTE")} className="py-4 bg-emerald-600 text-white rounded-xl font-black text-[9px] uppercase tracking-widest">Aprovar Lote</button>
-                     <button onClick={() => { handleStepAction(2, { status: QualityStatus.REJECTED, currentStep: 3 }, "REJEIÇÃO_PARCEIRO"); setActiveTab('remediation'); }} className="py-4 bg-red-600 text-white rounded-xl font-black text-[9px] uppercase tracking-widest">Rejeitar / Abrir RNC</button>
+        <StepCard 
+          step={2} 
+          title="Consistência de Dados" 
+          desc="Conferência de normas e especificações pelo parceiro."
+          active={currentStep === 2}
+          completed={currentStep > 2}
+          status={metadata?.documentalStatus}
+          signature={metadata?.signatures?.step2_documental}
+        >
+          {isClient && currentStep === 2 && (
+            <div className="flex gap-3 animate-in slide-in-from-bottom-2">
+               <button onClick={() => handleAction(2, 'APPROVED', { documentalStatus: 'APPROVED' })} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 active:scale-95">Aprovar</button>
+               <button onClick={() => handleAction(2, 'REJECTED', { documentalStatus: 'REJECTED' })} className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-red-700 active:scale-95">Rejeitar</button>
+            </div>
+          )}
+          {!isClient && currentStep === 2 && <WaitBadge label="Aguardando Parceiro" />}
+        </StepCard>
+
+        <StepCard 
+          step={3} 
+          title="Verificação de Lote" 
+          desc="Inspeção física e integridade do material no recebimento."
+          active={currentStep === 3}
+          completed={currentStep > 3}
+          status={metadata?.physicalStatus}
+          signature={metadata?.signatures?.step3_physical}
+        >
+          {isClient && currentStep === 3 && (
+            <div className="flex gap-3 animate-in slide-in-from-bottom-2">
+               <button onClick={() => handleAction(3, 'APPROVED', { physicalStatus: 'APPROVED' })} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest">Aprovar</button>
+               <button onClick={() => handleAction(3, 'REJECTED', { physicalStatus: 'REJECTED' })} className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest">Rejeitar</button>
+            </div>
+          )}
+          {!isClient && currentStep === 3 && <WaitBadge label="Aguardando Parceiro" />}
+        </StepCard>
+
+        <StepCard 
+          step={4} 
+          title="Arbitragem Técnica" 
+          desc="Análise e mediação de divergências técnicas."
+          active={currentStep === 4}
+          completed={currentStep > 4}
+          signature={metadata?.signatures?.step4_contestation}
+        >
+          {isAnalyst && currentStep === 4 && (
+            <div className="space-y-4 animate-in slide-in-from-bottom-2 max-w-xl">
+               <textarea 
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs min-h-[100px] outline-none focus:border-blue-400 transition-all font-medium"
+                  placeholder="Justificativa técnica..."
+                  value={contestationInput}
+                  onChange={e => setContestationInput(e.target.value)}
+               />
+               <button 
+                  disabled={!contestationInput.trim() || isSyncing}
+                  onClick={() => handleAction(4, 'APPROVED', { analystContestationNote: contestationInput })}
+                  className="px-8 py-3 bg-orange-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest shadow-lg hover:bg-orange-700 transition-all active:scale-95 disabled:opacity-50"
+               >
+                  Enviar Mediação
+               </button>
+            </div>
+          )}
+          {!isAnalyst && currentStep === 4 && <WaitBadge label="Em Elaboração Técnica" icon={Activity} />}
+        </StepCard>
+
+        <StepCard 
+          step={5} 
+          title="Veredito de Mediação" 
+          desc="Parecer final do parceiro sobre a arbitragem."
+          active={currentStep === 5}
+          completed={currentStep > 5}
+          signature={metadata?.signatures?.step5_mediation_review}
+        >
+          {metadata?.analystContestationNote && (
+              <div className="mb-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100 italic text-xs text-blue-800 shadow-inner max-w-xl">
+                  <p className="font-black uppercase mb-1 not-italic text-blue-900 text-[9px] tracking-widest">Parecer Vital:</p>
+                  "{metadata.analystContestationNote}"
+              </div>
+          )}
+          {isClient && currentStep === 5 && (
+            <div className="flex gap-3 animate-in slide-in-from-bottom-2">
+               <button onClick={() => handleAction(5, 'APPROVED', { mediationStatus: 'APPROVED' })} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700">Aceitar</button>
+               <button onClick={() => handleAction(5, 'REJECTED', { mediationStatus: 'REJECTED', status: QualityStatus.REJECTED })} className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-red-700">Manter Recusa</button>
+            </div>
+          )}
+        </StepCard>
+
+        <StepCard 
+          step={6} 
+          title="Registro Forense" 
+          desc="Assinatura digital e consolidação de logs imutáveis."
+          active={currentStep === 6}
+          completed={currentStep > 6}
+          signature={metadata?.signatures?.step6_system_log}
+        >
+          {isAnalyst && currentStep === 6 && (
+            <button onClick={() => handleAction(6, 'APPROVED', {})} className="px-8 py-3 bg-[#081437] text-white rounded-lg font-black text-[9px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">Consolidar Registro</button>
+          )}
+        </StepCard>
+
+        <StepCard 
+          step={7} 
+          title="Encerramento" 
+          desc="Arquivamento técnico e integração ao SGQ Central."
+          active={currentStep === 7}
+          completed={currentStep > 7}
+          signature={metadata?.signatures?.step7_final_verdict}
+        >
+          {currentStep === 7 && (
+              <div className="p-6 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 flex items-center gap-6 shadow-inner max-w-xl">
+                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-emerald-500 shadow-sm border border-emerald-100">
+                    <ShieldCheck size={28} />
                   </div>
-                </div>
-              )}
-            </StepItem>
-
-            {/* Step 3: Mediação (Condicional) */}
-            {(metadata?.status === QualityStatus.REJECTED || currentStep >= 3) && (
-              <>
-                <StepConnector active={currentStep >= 3} />
-                <StepItem 
-                  step={3} 
-                  title="Mediação e Retificação" 
-                  desc="Ajustes técnicos e resposta às contestações do parceiro."
-                  signature={metadata?.signatures?.step3_remediation}
-                  status={currentStep > 3 ? 'completed' : currentStep === 3 ? 'active' : 'pending'}
-                >
-                  {currentStep === 3 && isAnalyst && (
-                    <div className="space-y-4">
-                       <button 
-                         onClick={onUploadReplacement}
-                         className="w-full py-4 border-2 border-dashed border-blue-200 text-blue-600 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-blue-50 transition-all flex items-center justify-center gap-2"
-                       >
-                         <Upload size={14} /> Subir Documento Substituto
-                       </button>
-                       <button onClick={() => handleStepAction(3, { currentStep: 4 }, "MEDIAÇÃO_CONCLUIDA")} className="w-full py-4 bg-[#081437] text-white rounded-xl font-black text-[9px] uppercase tracking-widest">Finalizar Retificação</button>
-                    </div>
-                  )}
-                </StepItem>
-              </>
-            )}
-
-            {/* Final Step */}
-            <StepConnector active={currentStep >= 4} />
-            <StepItem 
-              step={4} 
-              title="Veredito Final" 
-              desc="Encerramento do dossier com aceite irrevogável."
-              signature={metadata?.signatures?.step4_final_verdict}
-              status={currentStep >= 4 ? 'active' : 'pending'}
-            />
-          </div>
-        )}
-
-        {activeTab === 'remediation' && (
-          <div className="space-y-6 animate-in fade-in duration-500">
-             <div className="p-6 bg-orange-50 border-2 border-orange-100 rounded-[2rem] space-y-4">
-                <div className="flex items-center gap-3 text-orange-700">
-                   <FileWarning size={24} />
-                   <h4 className="text-sm font-black uppercase tracking-tight">Guia de Tratamento de Rejeição</h4>
-                </div>
-                <p className="text-xs text-orange-800 font-medium leading-relaxed">
-                   Este laudo foi contestado. Para resolver esta Não-Conformidade, siga os protocolos abaixo:
-                </p>
-                <ul className="space-y-2">
-                   <GuideStep icon={RefreshCcw} label="1. Verificar divergência química" />
-                   <GuideStep icon={Ruler} label="2. Validar dimensões físicas no pátio" />
-                   <GuideStep icon={Upload} label="3. Emitir novo certificado (vNext)" />
-                </ul>
-             </div>
-             
-             {isAnalyst && (
-               <div className="space-y-4 pt-4 border-t border-slate-100">
-                  <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-[3px]">Ações de Qualidade</h5>
-                  <button onClick={onUploadReplacement} className="w-full flex items-center justify-between p-5 bg-white border border-slate-200 rounded-2xl hover:border-blue-500 hover:shadow-lg transition-all group">
-                     <div className="flex items-center gap-4">
-                        <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all"><Upload size={20}/></div>
-                        <div className="text-left">
-                           <p className="text-sm font-black text-slate-800 uppercase tracking-tight">Novo Laudo Substituto</p>
-                           <p className="text-[9px] text-slate-400 font-bold uppercase">Invalidar versão atual e subir v{ (metadata?.currentVersion || 1) + 1 }</p>
-                        </div>
-                     </div>
-                     <ArrowRight size={18} className="text-slate-300 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
-                  </button>
-               </div>
-             )}
-          </div>
-        )}
-
-        {activeTab === 'history' && (
-          <div className="space-y-4 animate-in fade-in duration-500">
-             <div className="flex items-center justify-between px-2">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[3px]">Histórico de Versões</h4>
-                <span className="text-[9px] font-black bg-blue-600 text-white px-2 py-0.5 rounded-full">v{metadata?.currentVersion || 1} Atual</span>
-             </div>
-             <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100 text-center">
-                <History size={32} className="mx-auto text-slate-300 mb-4" />
-                <p className="text-xs text-slate-500 font-medium italic">O versionamento garante que nenhuma informação técnica seja perdida durante o ciclo de correção.</p>
-             </div>
-          </div>
-        )}
-      </div>
+                  <div>
+                    <p className="text-sm font-black uppercase tracking-tight">Dossier Certificado</p>
+                    <p className="text-[9px] font-bold opacity-60 uppercase tracking-widest mt-0.5">Operação Finalizada com Sucesso</p>
+                  </div>
+              </div>
+          )}
+        </StepCard>
     </div>
   );
 };
 
-/* --- Sub-components Puros --- */
-
-const TabButton = ({ active, onClick, icon: Icon, label }: any) => (
-  <button 
-    onClick={onClick}
-    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
-        active ? 'bg-white text-[#081437] shadow-sm' : 'text-slate-500 hover:text-slate-700'
-    }`}
-  >
-    <Icon size={14} className={active ? 'text-blue-600' : ''} /> {label}
-  </button>
+const WaitBadge = ({ label, icon: Icon = Clock }: { label: string; icon?: any }) => (
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-400 w-fit">
+        <Icon size={12} className="animate-pulse" />
+        <p className="text-[8px] font-black uppercase tracking-widest">{label}</p>
+    </div>
 );
 
-const StepItem = ({ step, title, desc, signature, status, children }: any) => {
-  const isCompleted = status === 'completed';
-  const isActive = status === 'active';
+const StepCard = ({ step, title, desc, active, completed, signature, status, children }: any) => {
+  const isRejected = status === 'REJECTED' || (step === 5 && status === 'REJECTED');
 
   return (
-    <div className={`relative pl-4 transition-all duration-500 ${!isActive && !isCompleted ? 'opacity-40 grayscale' : ''}`}>
-      <div className="flex items-start gap-5">
-        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 z-10 border-2 transition-all ${
-          isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 
-          isActive ? 'bg-[#b23c0e] border-[#b23c0e] text-white shadow-xl shadow-orange-500/20 scale-110' : 
-          'bg-white border-slate-200 text-slate-300'
-        }`}>
-          {isCompleted ? <Check size={20} strokeWidth={4} /> : <span className="font-black text-sm">{step}</span>}
+    <div className={`p-6 rounded-2xl border transition-all duration-500 relative overflow-hidden group
+      ${active ? 'bg-white border-blue-400 shadow-md ring-1 ring-blue-400/10' : 
+        completed ? 'bg-white border-slate-100 opacity-80' : 'bg-transparent border-slate-100 opacity-30'}`}>
+      
+      <div className="flex items-start gap-6 relative z-10">
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-700
+          ${completed ? 'bg-emerald-500 border-emerald-400 text-white shadow-sm' : 
+            active ? 'bg-[#081437] border-slate-800 text-white shadow-lg' : 
+            'bg-slate-100 border-slate-200 text-slate-400'}`}>
+          {completed ? <Check size={24} strokeWidth={4} /> : <span className="font-black text-sm font-mono">{step}</span>}
         </div>
-        
-        <div className="flex-1 space-y-3">
-          <div>
-            <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">{title}</h4>
-            <p className="text-[10px] text-slate-500 font-medium leading-relaxed">{desc}</p>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-4">
+            <h4 className={`text-base font-black uppercase tracking-tight truncate ${active ? 'text-slate-900' : 'text-slate-400'}`}>
+              {title}
+            </h4>
+            {isRejected && <span className="text-[8px] font-black bg-red-600 text-white px-2 py-0.5 rounded-full animate-pulse tracking-widest shadow-sm">REPROVADO</span>}
           </div>
+          <p className="text-[11px] text-slate-500 mt-0.5 font-medium leading-relaxed max-w-xl">{desc}</p>
 
           {signature && (
-            <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-3 flex items-center justify-between animate-in zoom-in-95">
-               <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-emerald-600 shadow-sm"><BadgeCheck size={18} /></div>
-                  <div>
-                    <p className="text-[9px] font-black text-emerald-800 uppercase tracking-widest">Assinado por {signature.userName}</p>
-                    <p className="text-[8px] font-bold text-emerald-600 uppercase opacity-70">{signature.userRole} • Vital ID Secure</p>
-                  </div>
-               </div>
-               <div className="text-right">
-                  <p className="text-[9px] font-mono text-emerald-700 font-bold">{new Date(signature.timestamp).toLocaleDateString()}</p>
-                  <p className="text-[8px] font-mono text-emerald-500">{new Date(signature.timestamp).toLocaleTimeString()}</p>
-               </div>
+            <div className="mt-4 flex items-center gap-3 text-[8px] font-black text-emerald-600 bg-emerald-50/50 border border-emerald-100 w-fit px-3 py-1.5 rounded-lg">
+                <ClipboardCheck size={12} /> 
+                <span className="uppercase tracking-widest">{signature.userName} • {new Date(signature.timestamp).toLocaleDateString()} {new Date(signature.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
             </div>
           )}
 
-          {children && <div className="pt-2 animate-in slide-in-from-top-2">{children}</div>}
+          {children && <div className="mt-5 animate-in fade-in slide-in-from-bottom-2 duration-700">{children}</div>}
         </div>
+      </div>
+
+      <div className="absolute -right-6 -bottom-6 opacity-[0.015] text-slate-950 pointer-events-none transition-all duration-1000 group-hover:scale-110">
+         {step === 1 && <Key size={120} />}
+         {step === 2 && <FileText size={120} />}
+         {step === 3 && <FlaskConical size={120} />}
+         {step === 4 && <Activity size={120} />}
+         {step === 5 && <Search size={120} />}
+         {step === 6 && <Activity size={120} />}
+         {step === 7 && <ClipboardCheck size={120} />}
       </div>
     </div>
   );
 };
-
-const StepConnector = ({ active }: { active: boolean }) => (
-  <div className={`ml-5 h-8 w-0.5 rounded-full transition-all duration-700 ${active ? 'bg-emerald-500' : 'bg-slate-100'}`} />
-);
-
-const GuideStep = ({ icon: Icon, label }: any) => (
-  <li className="flex items-center gap-3 text-[10px] font-black text-orange-900 uppercase tracking-widest opacity-80">
-    <Icon size={12} className="shrink-0" /> {label}
-  </li>
-);

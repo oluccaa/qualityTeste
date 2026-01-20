@@ -14,6 +14,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
     
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
     <link rel="stylesheet" href="styles/responsive.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -37,16 +39,18 @@
       .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
       .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
 
+      /* Reset de Autofill do Navegador - Melhora legibilidade no Login */
       input:-webkit-autofill,
       input:-webkit-autofill:hover, 
       input:-webkit-autofill:focus, 
       input:-webkit-autofill:active {
-          -webkit-box-shadow: 0 0 0 1000px #f8fafc inset !important;
-          -webkit-text-fill-color: #081437 !important;
+          -webkit-box-shadow: 0 0 0 1000px #f8fafc inset !important; /* fundo slate-50 */
+          -webkit-text-fill-color: #081437 !important; /* texto marinho */
           transition: background-color 5000s ease-in-out 0s;
           font-family: 'Inter', sans-serif !important;
       }
 
+      /* Suavização de transições de hover */
       * { transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 200ms; }
     </style>
     
@@ -63,16 +67,15 @@
     "react-i18next": "https://esm.sh/react-i18next@15.4.0?deps=react@19.2.3",
     "i18next": "https://esm.sh/i18next@24.2.2",
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.48.1",
-    "pdfjs-dist": "https://esm.sh/pdfjs-dist@3.11.174",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "pdfjs-dist/": "https://esm.sh/pdfjs-dist@^5.4.530/"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
   }
 }
 </script>
-    <link rel="stylesheet" href="/index.css">
-  </head>
+<link rel="stylesheet" href="/index.css">
+</head>
   <body class="bg-slate-50 text-slate-900 antialiased">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-  </body>
+    <script type="module" src="./index.tsx"></script>
+<script type="module" src="/index.tsx"></script>
+</body>
 </html>

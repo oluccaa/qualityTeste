@@ -33,6 +33,27 @@ export interface FileVersion {
   note?: string;
 }
 
+export type AnnotationType = 'pencil' | 'marker' | 'rect' | 'circle' | 'eraser';
+
+export interface NormalizedPoint {
+  x: number; // 0.0 to 1.0
+  y: number; // 0.0 to 1.0
+}
+
+export interface AnnotationItem {
+  id: string;
+  type: AnnotationType;
+  color: string;
+  lineWidth: number;
+  points?: NormalizedPoint[]; // Para pencil e marker
+  startPoint?: NormalizedPoint; // Para shapes
+  endPoint?: NormalizedPoint;   // Para shapes
+  opacity?: number;
+}
+
+// Manifesto completo de anotações do documento
+export type DocumentAnnotations = Record<number, AnnotationItem[]>;
+
 export interface SteelBatchMetadata {
   batchNumber: string;
   grade: string;
@@ -43,45 +64,46 @@ export interface SteelBatchMetadata {
   versionHistory: FileVersion[];
   
   // Controle de Fluxo
-  currentStep: number;
+  currentStep: number; // 1 a 7
+
+  // Propriedades de Rastreabilidade e Interação
+  // Fix: Added missing viewedAt property to resolve error in InspectionSidebar.tsx
+  viewedAt?: ISO8601Date;
+  // Fix: Added missing clientObservations property to resolve errors in InspectionSidebar.tsx and QualityPortfolioView.tsx
+  clientObservations?: string;
+  // Fix: Added missing replacementFileId property to resolve error in useFilePreview.ts
+  replacementFileId?: string;
   
   // Assinaturas de Etapas (Tracing Completo)
   signatures: {
     step1_release?: AuditSignature;
-    step2_client_check?: AuditSignature;
-    step3_remediation?: AuditSignature;
-    step4_final_verdict?: AuditSignature;
+    step2_documental?: AuditSignature;
+    step3_physical?: AuditSignature;
+    step4_contestation?: AuditSignature;
+    step5_mediation_review?: AuditSignature;
+    step6_system_log?: AuditSignature;
+    step7_final_verdict?: AuditSignature;
   };
 
+  // Status de Etapas
+  documentalStatus?: 'APPROVED' | 'REJECTED' | 'PENDING';
+  physicalStatus?: 'APPROVED' | 'REJECTED' | 'PENDING';
+  mediationStatus?: 'APPROVED' | 'REJECTED' | 'PENDING';
+
+  // Conteúdo de Mediação
+  analystContestationNote?: string;
+  clientMediationNote?: string;
+
   // Etapa 2: Conferência Documental/Física
-  documentalStatus?: QualityStatus;
   documentalNotes?: string;
-  // Fix: added documentalFlags to support audit snapshots
   documentalFlags?: string[];
-  // Fix: added documentalDrawings to support annotations
-  documentalDrawings?: string;
+  documentalDrawings?: string; 
   
-  physicalStatus?: QualityStatus;
   physicalNotes?: string;
-  // Fix: added physicalFlags to support audit snapshots
+  // Fix: Added missing physicalFlags property to resolve error in supabaseQualityService.ts
   physicalFlags?: string[];
-  // Fix: added physicalPhotos to support evidence tracking
   physicalPhotos?: string[];
   
-  // Tratamento de Rejeição
-  remediationPlan?: string;
-  remediationReply?: string;
-  replacementFileId?: string; // Link para o novo arquivo se houver substituição
-
-  // Interação e Rastreabilidade
-  // Fix: added interaction fields for workflow and feedback tracking
-  lastInteractionAt?: ISO8601Date;
-  lastInteractionBy?: string;
-  viewedAt?: ISO8601Date;
-  clientObservations?: string;
-  lastClientInteractionAt?: ISO8601Date;
-  lastClientInteractionBy?: string;
-
   // Global
   status: QualityStatus;
   chemicalComposition: ChemicalComposition;

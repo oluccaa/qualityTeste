@@ -120,6 +120,8 @@ export const useFileInspection = () => {
     handleUploadEvidence,
     previewFile,
     setPreviewFile,
+    // Fix: Added missing user property to the return object to resolve the error in FileInspection.tsx
+    user,
     handleDownload: async (file: FileNode) => {
       try {
         const url = await fileService.getSignedUrl(file.storagePath);

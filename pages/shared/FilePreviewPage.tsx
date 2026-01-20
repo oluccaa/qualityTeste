@@ -1,16 +1,16 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Hand, Pencil, Highlighter, Square, Circle, 
   Eraser, Download, PlayCircle, Loader2, ChevronLeft, 
-  ChevronRight, ZoomIn, ZoomOut, Plus, Palette
+  ChevronRight, ZoomIn, ZoomOut, Plus, Save, Undo
 } from 'lucide-react';
 import { useAuth } from '../../context/authContext.tsx';
 import { useFilePreview } from '../../components/features/files/hooks/useFilePreview.ts';
 import { PdfViewport } from '../../components/features/files/components/PdfViewport.tsx';
 import { DrawingCanvas, DrawingTool } from '../../components/features/files/components/DrawingCanvas.tsx';
-import { UserRole, normalizeRole, FileNode } from '../../types/index.ts';
+import { UserRole, normalizeRole, FileNode, DocumentAnnotations, AnnotationItem } from '../../types/index.ts';
 
 const COLORS = [
   { name: 'Red', value: '#ef4444' },
@@ -29,6 +29,11 @@ const FilePreviewPage: React.FC = () => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [numPages, setNumPages] = useState(0);
 
+  // Estado das anotações em formato de dicionário de páginas
+  const [annotations, setAnnotations] = useState<DocumentAnnotations>({});
+
+  const initialFileStub = useMemo(() => ({ id: fileId } as FileNode), [fileId]);
+
   const {
     currentFile,
     url,
@@ -36,15 +41,51 @@ const FilePreviewPage: React.FC = () => {
     setPageNum,
     zoom,
     setZoom,
-    handleDownload
-  } = useFilePreview(user, { id: fileId } as FileNode);
+    handleDownload,
+    handleUpdateMetadata,
+    isSyncing
+  } = useFilePreview(user, initialFileStub);
+
+  // Carrega as anotações iniciais vindas do banco de dados (se houver)
+  useEffect(() => {
+    if (currentFile?.metadata?.documentalDrawings) {
+      try {
+        const saved = JSON.parse(currentFile.metadata.documentalDrawings);
+        setAnnotations(saved);
+      } catch (e) {
+        console.error("Falha ao analisar anotações salvas:", e);
+      }
+    }
+  }, [currentFile?.id]);
+
+  const handlePageAnnotationsChange = useCallback((page: number, newPageAnnotations: AnnotationItem[]) => {
+    setAnnotations(prev => ({
+      ...prev,
+      [page]: newPageAnnotations
+    }));
+  }, []);
+
+  const handleSaveAll = async () => {
+    if (!currentFile) return;
+    const jsonString = JSON.stringify(annotations);
+    await handleUpdateMetadata({
+        documentalDrawings: jsonString
+    });
+  };
+
+  const handleUndo = () => {
+    setAnnotations(prev => {
+        const pageItems = prev[pageNum] || [];
+        if (pageItems.length === 0) return prev;
+        return {
+            ...prev,
+            [pageNum]: pageItems.slice(0, -1)
+        };
+    });
+  };
 
   const role = normalizeRole(user?.role);
   const canAudit = role === UserRole.QUALITY || role === UserRole.ADMIN;
-
-  const handleStartAudit = () => {
-    navigate(`/quality/inspection/${fileId}`);
-  };
 
   return (
     <div className="h-screen w-screen bg-[#020617] flex flex-col overflow-hidden font-sans">
@@ -59,17 +100,27 @@ const FilePreviewPage: React.FC = () => {
           </button>
           <div>
             <h2 className="text-white text-xs font-black uppercase tracking-widest truncate max-w-xs">
-              {currentFile?.name || "Sincronizando..."}
+              {currentFile?.name || "Carregando Ativo..."}
             </h2>
           </div>
         </div>
 
-        <button 
-          onClick={handleDownload}
-          className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10 flex items-center gap-2 transition-all"
-        >
-          <Download size={14} /> Download PDF
-        </button>
+        <div className="flex items-center gap-4">
+            <button 
+                onClick={handleSaveAll}
+                disabled={isSyncing}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all disabled:opacity-50"
+            >
+                {isSyncing ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                Persistir Alterações
+            </button>
+            <button 
+              onClick={handleDownload}
+              className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10 flex items-center gap-2 transition-all"
+            >
+              <Download size={14} /> Exportar Original
+            </button>
+        </div>
       </header>
 
       {/* Viewport */}
@@ -88,6 +139,8 @@ const FilePreviewPage: React.FC = () => {
                 color={selectedColor} 
                 width={w} 
                 height={h} 
+                pageAnnotations={annotations[pageNum] || []}
+                onAnnotationsChange={(newItems) => handlePageAnnotationsChange(pageNum, newItems)}
               />
             )}
           />
@@ -132,7 +185,6 @@ const FilePreviewPage: React.FC = () => {
             label="Mão" 
           />
           
-          {/* BOTÃO MAIS COM MENU SUPERIOR */}
           <div className="relative">
             {showMoreMenu && (
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 bg-[#081437] border border-white/10 p-2 rounded-[2rem] shadow-2xl flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-300">
@@ -163,6 +215,14 @@ const FilePreviewPage: React.FC = () => {
               <Plus size={20} className={`transition-transform duration-300 ${showMoreMenu ? 'rotate-45' : 'rotate-0'}`} />
             </button>
           </div>
+
+          <ToolButton 
+            icon={Undo} 
+            active={false} 
+            onClick={handleUndo} 
+            label="Desfazer" 
+            disabled={(annotations[pageNum] || []).length === 0}
+          />
         </div>
 
         {/* Zoom */}
@@ -174,7 +234,7 @@ const FilePreviewPage: React.FC = () => {
         {/* Iniciar Auditoria */}
         {canAudit && (
           <button 
-            onClick={handleStartAudit}
+            onClick={() => navigate(`/quality/inspection/${fileId}`)}
             className="ml-2 px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-full font-black text-[10px] uppercase tracking-[3px] shadow-2xl shadow-orange-600/30 transition-all active:scale-95 flex items-center gap-3"
           >
             <PlayCircle size={18} /> INICIAR AUDITORIA
@@ -185,11 +245,12 @@ const FilePreviewPage: React.FC = () => {
   );
 };
 
-const ToolButton = ({ icon: Icon, active, onClick, label }: any) => (
+const ToolButton = ({ icon: Icon, active, onClick, label, disabled }: any) => (
   <button 
     onClick={onClick}
     title={label}
-    className={`p-3.5 rounded-full transition-all relative group flex items-center justify-center ${
+    disabled={disabled}
+    className={`p-3.5 rounded-full transition-all relative group flex items-center justify-center disabled:opacity-20 ${
         active 
         ? 'bg-blue-600 text-white shadow-xl' 
         : 'text-slate-400 hover:text-white hover:bg-white/5'

@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { FileNode, SteelBatchMetadata, User, FileType } from '../../../../types/index.ts';
 import { fileService } from '../../../../lib/services/index.ts';
 import { useToast } from '../../../../context/notificationContext.tsx';
@@ -11,24 +11,39 @@ export const useFilePreview = (user: User | null, initialFile: FileNode | null) 
   const [isSyncing, setIsSyncing] = useState(false);
   const [pageNum, setPageNum] = useState(1);
   const [zoom, setZoom] = useState(1.0);
+  
+  const isLoadedRef = useRef(false);
 
-  const loadFileUrl = useCallback(async (file: FileNode) => {
+  const loadFileDetails = useCallback(async (id: string) => {
     if (!user) return;
+    setIsSyncing(true);
     try {
-        const signed = await fileService.getFileSignedUrl(user, file.id);
+        const fileData = await fileService.getFile(user, id);
+        setCurrentFile(fileData);
+        
+        const signed = await fileService.getFileSignedUrl(user, id);
         setUrl(signed);
-    } catch (e) {
-        showToast("Falha ao autenticar acesso ao bucket.", "error");
+    } catch (e: any) {
+        console.error("[useFilePreview] Falha técnica:", e);
+        showToast(e.message || "Falha ao autenticar acesso ao repositório.", "error");
+    } finally {
+        setIsSyncing(false);
     }
   }, [user, showToast]);
 
   useEffect(() => {
-    if (initialFile && user) {
-      setCurrentFile(initialFile);
-      setPageNum(1);
-      loadFileUrl(initialFile);
+    if (!user || !initialFile?.id) return;
+    
+    // Se o initialFile só tem ID, carregamos tudo. Se já tem nome, assumimos que está completo e só pedimos a URL
+    if (!initialFile.name) {
+        loadFileDetails(initialFile.id);
+    } else if (!isLoadedRef.current) {
+        isLoadedRef.current = true;
+        fileService.getFileSignedUrl(user, initialFile.id)
+            .then(setUrl)
+            .catch(e => showToast("Erro ao gerar link de visualização.", "error"));
     }
-  }, [initialFile, user, loadFileUrl]);
+  }, [initialFile?.id, user, loadFileDetails, initialFile?.name, showToast]);
 
   const handleUpdateMetadata = useCallback(async (updatedMetadata: Partial<SteelBatchMetadata>) => {
     if (!currentFile) return;
@@ -53,7 +68,6 @@ export const useFilePreview = (user: User | null, initialFile: FileNode | null) 
     
     setIsSyncing(true);
     try {
-        // 1. Sobe o novo arquivo físico como uma nova versão
         const nextVersion = (currentFile.versionNumber || 1) + 1;
         const newFileName = `v${nextVersion}_${currentFile.name.replace(/^v\d+_/, '')}`;
         
@@ -66,15 +80,14 @@ export const useFilePreview = (user: User | null, initialFile: FileNode | null) 
             mimeType: 'application/pdf'
         }, currentFile.ownerId);
 
-        // 2. Atualiza metadados do original com link para o substituto
         await fileService.updateFileMetadata(currentFile.id, {
             replacementFileId: uploaded.id,
-            status: 'SENT' as any // Reinicia o status ou marca como substituído
+            status: 'SENT' as any
         });
 
-        // 3. Muda a visualização para o novo arquivo
         setCurrentFile(uploaded);
-        await loadFileUrl(uploaded);
+        const newUrl = await fileService.getFileSignedUrl(user, uploaded.id);
+        setUrl(newUrl);
         
         showToast(`Versão ${nextVersion} implementada com sucesso.`, "success");
     } catch (e: any) {
@@ -82,7 +95,7 @@ export const useFilePreview = (user: User | null, initialFile: FileNode | null) 
     } finally {
         setIsSyncing(false);
     }
-  }, [currentFile, user, showToast, loadFileUrl]);
+  }, [currentFile, user, showToast]);
 
   const handleDownload = useCallback(async () => {
     if (!currentFile || !user) return;

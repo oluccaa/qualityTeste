@@ -78,6 +78,7 @@ export interface PaginatedResponse<T> {
 export interface IFileService {
   getRawFiles: (folderId: string | null, page?: number, pageSize?: number, searchTerm?: string, ownerId?: string) => Promise<PaginatedResponse<FileNode>>;
   getFiles: (user: User, folderId: string | null, page?: number, pageSize?: number, searchTerm?: string) => Promise<PaginatedResponse<FileNode>>;
+  getFile: (user: User, fileId: string) => Promise<FileNode>;
   createFolder: (user: User, parentId: string | null, name: string, ownerId?: string) => Promise<FileNode>;
   uploadFile: (user: User, fileData: any, ownerId: string) => Promise<FileNode>;
   deleteFile: (user: User, fileIds: string[]) => Promise<void>;

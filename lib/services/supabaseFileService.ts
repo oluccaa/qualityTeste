@@ -43,6 +43,19 @@ export const SupabaseFileService: IFileService = {
     return SupabaseFileService.getRawFiles(folderId, page, pageSize, searchTerm, effectiveOwnerId);
   },
 
+  getFile: async (user, fileId) => {
+    const { data, error } = await supabase
+      .from('files')
+      .select('*, profiles:uploaded_by(full_name)')
+      .eq('id', fileId)
+      .single();
+    if (error) {
+        console.error(`[SupabaseFileService] Erro ao buscar arquivo ${fileId}:`, error);
+        throw new Error("Não foi possível localizar o registro do arquivo no banco de dados.");
+    }
+    return toDomainFile(data);
+  },
+
   createFolder: async (user, parentId, name, ownerId) => {
     const { data, error } = await supabase.from('files').insert({
         name,
@@ -63,13 +76,11 @@ export const SupabaseFileService: IFileService = {
     const uniqueId = crypto.randomUUID();
     const folderPath = fileData.parentId || 'root';
     
-    // FIX: Sanitização robusta para a KEY do Storage (Caminho físico)
-    // Remove acentos, espaços e caracteres especiais para evitar "Invalid key"
     const sanitizedFileName = fileData.name
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // Remove acentos
-      .replace(/\s+/g, "_")            // Troca espaços por underscore
-      .replace(/[^a-zA-Z0-9._-]/g, ""); // Remove o que sobrar de especial
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "_")
+      .replace(/[^a-zA-Z0-9._-]/g, "");
     
     const filePath = `${ownerId}/${folderPath}/${uniqueId}-${sanitizedFileName}`;
     
@@ -80,7 +91,7 @@ export const SupabaseFileService: IFileService = {
     if (uploadError) throw uploadError;
 
     const { data, error } = await supabase.from('files').insert({
-        name: fileData.name, // Mantém o nome original (amigável) para o usuário no banco
+        name: fileData.name,
         type: fileData.type,
         parent_id: fileData.parentId,
         owner_id: ownerId,
@@ -151,15 +162,28 @@ export const SupabaseFileService: IFileService = {
   },
 
   getSignedUrl: async (path) => {
-    if (path === 'system/folder') return '';
+    if (!path || path === 'system/folder') return '';
+    
+    // Tentativa de gerar URL assinada
     const { data, error } = await supabase.storage.from(STORAGE_BUCKET).createSignedUrl(path, 3600);
-    if (error) throw error;
+    
+    if (error) {
+        console.error(`[Supabase Storage] Erro ao assinar URL para ${path}:`, error);
+        // Fallback: Tenta pegar URL pública se for erro de autorização mas o balde permitir leitura pública
+        const { data: publicData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+        if (publicData?.publicUrl) return publicData.publicUrl;
+        throw error;
+    }
+    
     return data.signedUrl;
   },
 
   getFileSignedUrl: async (user, fileId) => {
     const { data, error } = await supabase.from('files').select('storage_path').eq('id', fileId).single();
-    if (error || !data) throw new Error("Ativo não localizado.");
+    if (error || !data) {
+        console.error(`[SupabaseFileService] Ativo ${fileId} não localizado para assinatura.`);
+        throw new Error("Arquivo não encontrado no registro industrial.");
+    }
     return SupabaseFileService.getSignedUrl(data.storage_path);
   },
 

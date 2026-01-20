@@ -1,11 +1,11 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   X, Download, ShieldCheck, FileText, Loader2, 
   Pencil, Highlighter, Square, Circle, Eraser, Save, 
   Hand, History
 } from 'lucide-react';
-import { FileNode, UserRole, SteelBatchMetadata } from '../../../types/index.ts';
+// Fix: Added DocumentAnnotations and AnnotationItem to imports
+import { FileNode, UserRole, SteelBatchMetadata, DocumentAnnotations, AnnotationItem } from '../../../types/index.ts';
 import { useAuth } from '../../../context/authContext.tsx';
 import { AuditWorkflow } from '../quality/components/AuditWorkflow.tsx';
 import { PdfViewport } from './components/PdfViewport.tsx';
@@ -20,7 +20,8 @@ export const FilePreviewModal: React.FC<{
 }> = ({ initialFile, isOpen, onClose }) => {
   const { user } = useAuth();
   const [activeTool, setActiveTool] = useState<DrawingTool>('hand');
-  const [drawingData, setDrawingData] = useState<string | null>(null);
+  // Fix: Replaced drawingData string state with structured DocumentAnnotations state to satisfy DrawingCanvasProps
+  const [annotations, setAnnotations] = useState<DocumentAnnotations>({});
   const replacementInputRef = useRef<HTMLInputElement>(null);
   
   const {
@@ -36,10 +37,26 @@ export const FilePreviewModal: React.FC<{
     handleReplacementUpload
   } = useFilePreview(user, initialFile);
 
+  // Fix: Added effect to load existing annotations from file metadata when the file changes
+  useEffect(() => {
+    if (currentFile?.metadata?.documentalDrawings) {
+      try {
+        const saved = JSON.parse(currentFile.metadata.documentalDrawings);
+        setAnnotations(saved);
+      } catch (e) {
+        console.error("Falha ao analisar anotações salvas no modal:", e);
+        setAnnotations({});
+      }
+    } else {
+        setAnnotations({});
+    }
+  }, [currentFile?.id]);
+
+  // Fix: Updated handleSaveAudited to stringify the annotations dictionary for persistence
   const handleSaveAudited = async () => {
-    if (!drawingData) return;
+    const data = JSON.stringify(annotations);
     await handleUpdateMetadata({ 
-        documentalDrawings: drawingData,
+        documentalDrawings: data,
     });
   };
 
@@ -83,7 +100,7 @@ export const FilePreviewModal: React.FC<{
             
             <button 
                 onClick={handleSaveAudited}
-                disabled={!drawingData || isSyncing}
+                disabled={Object.keys(annotations).length === 0 || isSyncing}
                 className="ml-4 flex items-center gap-2.5 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[2px] hover:bg-blue-500 disabled:opacity-30 disabled:grayscale transition-all shadow-lg active:scale-95"
             >
                 <Save size={16} /> Salvar Auditado
@@ -100,12 +117,16 @@ export const FilePreviewModal: React.FC<{
                 onPageChange={setPageNum} 
                 onZoomChange={setZoom} 
                 renderOverlay={(w, h) => (
+                    /* Fix: Corrected DrawingCanvas props to pass pageAnnotations and onAnnotationsChange instead of onSave */
                     <DrawingCanvas 
                         tool={activeTool} 
                         color="#ef4444" 
                         width={w} 
                         height={h} 
-                        onSave={setDrawingData}
+                        pageAnnotations={annotations[pageNum] || []}
+                        onAnnotationsChange={(newItems) => {
+                            setAnnotations(prev => ({ ...prev, [pageNum]: newItems }));
+                        }}
                     />
                 )}
             />
